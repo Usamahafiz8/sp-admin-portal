@@ -42,6 +42,16 @@ export function Navigation() {
               >
                 Public Images
               </Link>
+              <Link
+                href="/countdown"
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/countdown' || pathname?.startsWith('/countdown')
+                    ? 'bg-blue-600 text-white'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                7 Days Countdown
+              </Link>
             </div>
           </div>
           <div className="flex items-center gap-4">

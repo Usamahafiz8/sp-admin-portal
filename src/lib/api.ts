@@ -246,3 +246,110 @@ export const publicImageApi = {
 };
 
 export type { Image, ImageListResponse, CreateImageDto, UpdateImageDto };
+
+// ============================================================================
+// Countdown System Types and API
+// ============================================================================
+
+interface CountdownReward {
+  id: string;
+  day_number: number;
+  reward_date: string;
+  reward_name: string;
+  reward_description: string;
+  reward_type: 'item' | 'currency' | 'experience' | 'badge' | 'title';
+  reward_item_id?: number | null;
+  reward_quantity: number;
+  reward_rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
+  is_active: boolean;
+  can_claim: boolean;
+  is_claimed: boolean;
+  current_day?: number | null;
+}
+
+interface CountdownEvent {
+  id: string;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  status: 'draft' | 'active' | 'completed' | 'cancelled';
+  is_active: boolean;
+  rewards: CountdownReward[];
+  total_days: number;
+  days_remaining: number;
+  is_currently_active: boolean;
+  current_day: number | null;
+}
+
+interface CreateCountdownRewardDto {
+  day_number: number;
+  reward_date: string;
+  reward_name: string;
+  reward_description: string;
+  reward_type: 'item' | 'currency' | 'experience' | 'badge' | 'title';
+  reward_item_id?: number | null;
+  reward_quantity: number;
+  reward_rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
+  is_active?: boolean;
+}
+
+interface CreateCountdownEventDto {
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  status?: 'draft' | 'active' | 'completed' | 'cancelled';
+  is_active?: boolean;
+  rewards: CreateCountdownRewardDto[];
+}
+
+interface UpdateCountdownEventDto extends Partial<CreateCountdownEventDto> {}
+
+// Countdown Management API (Admin only - requires auth)
+export const countdownApi = {
+  // Get all countdown events (admin view)
+  getAll: async (): Promise<CountdownEvent[]> => {
+    const response = await apiRequest<CountdownEvent[]>('/countdown/admin/events');
+    return response.data;
+  },
+
+  // Get countdown event by ID
+  getById: async (id: string): Promise<CountdownEvent> => {
+    const response = await apiRequest<CountdownEvent>(`/countdown/${id}`);
+    return response.data;
+  },
+
+  // Create countdown event
+  create: async (data: CreateCountdownEventDto): Promise<CountdownEvent> => {
+    const response = await apiRequest<CountdownEvent>('/countdown/admin/events', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+
+  // Update countdown event
+  update: async (id: string, data: UpdateCountdownEventDto): Promise<CountdownEvent> => {
+    const response = await apiRequest<CountdownEvent>(`/countdown/admin/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+
+  // Delete countdown event
+  delete: async (id: string): Promise<void> => {
+    await apiRequest(`/countdown/admin/events/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+export type {
+  CountdownEvent,
+  CountdownReward,
+  CreateCountdownEventDto,
+  CreateCountdownRewardDto,
+  UpdateCountdownEventDto,
+};
