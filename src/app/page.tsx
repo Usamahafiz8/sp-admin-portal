@@ -1,15 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginModal } from '../components/LoginModal';
+import { Navigation } from '../components/Navigation';
 
 export default function Home() {
   const { isAuthenticated, user, logout } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">
+      {isAuthenticated && <Navigation />}
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <header className="mb-12 text-center">
@@ -163,37 +167,37 @@ export default function Home() {
             </div>
 
             {/* Quick Access Card */}
-            <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-800 md:col-span-2">
-              <h2 className="mb-4 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Quick Access
-              </h2>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-md border border-zinc-200 p-4 dark:border-zinc-700">
-                  <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                    Image Management
-                  </h3>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Create, update, and manage images with full admin control
-                  </p>
-                </div>
-                <div className="rounded-md border border-zinc-200 p-4 dark:border-zinc-700">
-                  <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                    Public Images
-                  </h3>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    View and manage publicly accessible images
-                  </p>
-                </div>
-                <div className="rounded-md border border-zinc-200 p-4 dark:border-zinc-700">
-                  <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                    System Settings
-                  </h3>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Configure system-wide settings and preferences
-                  </p>
+            {isAuthenticated && (
+              <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-800 md:col-span-2">
+                <h2 className="mb-4 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                  Quick Access
+                </h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <button
+                    onClick={() => router.push('/images')}
+                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-blue-500 hover:bg-blue-50 dark:border-zinc-700 dark:hover:bg-blue-900/20"
+                  >
+                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                      Image Management
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Create, update, and manage images with full admin control
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => router.push('/images/public')}
+                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-blue-500 hover:bg-blue-50 dark:border-zinc-700 dark:hover:bg-blue-900/20"
+                  >
+                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                      Public Images
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      View and manage publicly accessible images
+                    </p>
+                  </button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
