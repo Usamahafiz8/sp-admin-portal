@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { countdownApi, type CountdownEvent, type CreateCountdownRewardDto } from '../../../../lib/api';
+import { countdownApi, inventoryApi, type CountdownEvent, type CreateCountdownRewardDto, type InventoryItem } from '../../../../lib/api';
 import { Navigation } from '../../../../components/Navigation';
 
 export default function EditCountdownPage() {
@@ -26,6 +26,26 @@ export default function EditCountdownPage() {
     is_active: true,
   });
   const [rewards, setRewards] = useState<CreateCountdownRewardDto[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  // Fetch inventory items
+  useEffect(() => {
+    const fetchInventoryItems = async () => {
+      try {
+        setLoadingItems(true);
+        const items = await inventoryApi.getAll();
+        setInventoryItems(items);
+      } catch (err) {
+        console.error('Error fetching inventory items:', err);
+      } finally {
+        setLoadingItems(false);
+      }
+    };
+    if (isAuthenticated) {
+      fetchInventoryItems();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -108,6 +128,10 @@ export default function EditCountdownPage() {
         if (!reward.reward_date || !reward.reward_name || !reward.reward_description) {
           throw new Error(`Please fill in all fields for Day ${reward.day_number}`);
         }
+        // If reward type is 'item', must have an inventory item selected
+        if (reward.reward_type === 'item' && !reward.reward_item_id) {
+          throw new Error(`Day ${reward.day_number}: Please select an inventory item for item rewards`);
+        }
       }
 
       await countdownApi.update(id, {
@@ -140,6 +164,23 @@ export default function EditCountdownPage() {
   const updateReward = (index: number, field: string, value: any) => {
     const newRewards = [...rewards];
     newRewards[index] = { ...newRewards[index], [field]: value };
+    
+    // If changing reward_type to 'item', reset item_id if it was set
+    if (field === 'reward_type' && value !== 'item') {
+      newRewards[index].reward_item_id = null;
+    }
+    
+    // If selecting an inventory item, auto-fill name and description
+    if (field === 'reward_item_id' && value) {
+      const selectedItem = inventoryItems.find(item => item.id === value);
+      if (selectedItem) {
+        newRewards[index].reward_name = selectedItem.item_name;
+        newRewards[index].reward_description = selectedItem.item_description || '';
+        newRewards[index].reward_rarity = selectedItem.rarity as any;
+        newRewards[index].reward_quantity = 1;
+      }
+    }
+    
     setRewards(newRewards);
   };
 
@@ -390,16 +431,45 @@ export default function EditCountdownPage() {
                       </select>
                     </div>
                     {reward.reward_type === 'item' && (
-                      <div>
-                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                          Item ID
+                      <div className="md:col-span-2 lg:col-span-4">
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                          Select Inventory Item * (Links reward to inventory)
                         </label>
-                        <input
-                          type="number"
-                          value={reward.reward_item_id || ''}
-                          onChange={(e) => updateReward(index, 'reward_item_id', e.target.value ? parseInt(e.target.value) : null)}
-                          className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-                        />
+                        {loadingItems ? (
+                          <div className="text-xs text-zinc-500 dark:text-zinc-400">Loading items...</div>
+                        ) : (
+                          <select
+                            value={reward.reward_item_id || ''}
+                            onChange={(e) => updateReward(index, 'reward_item_id', e.target.value || null)}
+                            required={reward.reward_type === 'item'}
+                            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
+                          >
+                            <option value="">-- Select an inventory item --</option>
+                            {inventoryItems
+                              .filter(item => item.is_active)
+                              .map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.item_name} ({item.item_id}) - {item.item_type} - {item.rarity}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                        {reward.reward_item_id && (
+                          <div className="mt-2 rounded-md bg-blue-50 p-2 text-xs dark:bg-blue-900/20">
+                            <span className="font-medium text-blue-800 dark:text-blue-400">✓ Linked to Inventory</span>
+                            <p className="text-blue-600 dark:text-blue-300 mt-1">
+                              {(() => {
+                                const selectedItem = inventoryItems.find(item => item.id === reward.reward_item_id);
+                                return selectedItem 
+                                  ? `Item ID: ${selectedItem.item_id} | Type: ${selectedItem.item_type} | Rarity: ${selectedItem.rarity}`
+                                  : 'Item details will be loaded';
+                              })()}
+                            </p>
+                          </div>
+                        )}
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          Select an item from inventory. Reward will be delivered to user's inventory when claimed.
+                        </p>
                       </div>
                     )}
                     <div className="flex items-center gap-2">

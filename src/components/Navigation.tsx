@@ -52,6 +52,68 @@ export function Navigation() {
               >
                 7 Days Countdown
               </Link>
+              <Link
+                href="/inventory"
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/inventory' || pathname?.startsWith('/inventory')
+                    ? 'bg-blue-600 text-white'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Inventory
+              </Link>
+              <Link
+                href="/rewards"
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/rewards' || pathname?.startsWith('/rewards')
+                    ? 'bg-blue-600 text-white'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Daily Rewards
+              </Link>
+              <Link
+                href="/easter-egg"
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/easter-egg' || pathname?.startsWith('/easter-egg')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Easter Eggs
+              </Link>
+              <Link
+                href="/community-goals"
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/community-goals' || pathname?.startsWith('/community-goals')
+                    ? 'bg-green-600 text-white'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Community Goals
+              </Link>
+              <Link
+                href="/founder-pack"
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/founder-pack' || pathname?.startsWith('/founder-pack')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Founder Pack
+              </Link>
+              {/* {user?.role === 'super_admin' && (
+                <Link
+                  href="/admins"
+                  className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                    pathname === '/admins' || pathname?.startsWith('/admins')
+                      ? 'bg-purple-600 text-white'
+                      : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  Admin Management
+                </Link>
+              )} */}
             </div>
           </div>
           <div className="flex items-center gap-4">

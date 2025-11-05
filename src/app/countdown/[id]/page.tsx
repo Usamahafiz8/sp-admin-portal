@@ -200,51 +200,88 @@ export default function CountdownDetailPage() {
               .map((reward) => (
                 <div
                   key={reward.id}
-                  className={`rounded-lg border p-4 ${
+                  className={`rounded-lg border-2 p-5 transition-all hover:shadow-lg ${
                     reward.can_claim
-                      ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
-                      : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-700/50'
+                      ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
+                      : 'border-zinc-300 bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700/50'
                   }`}
                 >
-                  <div className="mb-2 flex items-center justify-between">
+                  {/* Reward Image */}
+                  <div className="mb-4 flex items-center justify-center">
+                    {reward.preview_url || reward.icon_url ? (
+                      <img
+                        src={reward.preview_url || reward.icon_url || ''}
+                        alt={reward.reward_name}
+                        className="h-24 w-24 rounded-lg object-cover border-2 border-zinc-300 dark:border-zinc-600"
+                        onError={(e) => {
+                          // Fallback to icon if preview fails
+                          if (reward.icon_url && (e.target as HTMLImageElement).src !== reward.icon_url) {
+                            (e.target as HTMLImageElement).src = reward.icon_url || '';
+                          } else {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-700">
+                        <span className="text-4xl">
+                          {reward.reward_type === 'currency' ? '💰' : 
+                           reward.reward_type === 'experience' ? '⭐' : 
+                           reward.reward_type === 'badge' ? '🏅' : 
+                           reward.reward_type === 'title' ? '👑' : '📦'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-3 flex items-center justify-between">
                     <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
                       Day {reward.day_number}
                     </span>
                     {reward.can_claim && (
-                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900/40 dark:text-green-400">
+                      <span className="rounded-full bg-green-200 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-800 dark:text-green-200">
                         Available
                       </span>
                     )}
+                    {reward.is_claimed && (
+                      <span className="rounded-full bg-blue-200 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-800 dark:text-blue-200">
+                        ✓ Claimed
+                      </span>
+                    )}
                   </div>
-                  <h3 className="mb-1 font-semibold text-zinc-900 dark:text-zinc-50">
+                  <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                     {reward.reward_name}
                   </h3>
-                  <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
-                    {reward.reward_description}
-                  </p>
-                  <div className="mb-2 flex flex-wrap gap-2">
+                  {reward.reward_description && (
+                    <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+                      {reward.reward_description}
+                    </p>
+                  )}
+                  <div className="mb-3 flex flex-wrap gap-2">
                     <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium ${getRarityColor(
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${getRarityColor(
                         reward.reward_rarity
                       )}`}
                     >
                       {reward.reward_rarity}
                     </span>
-                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium capitalize text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                       {reward.reward_type}
                     </span>
-                    <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                      Qty: {reward.reward_quantity}
-                    </span>
+                    {reward.reward_quantity > 1 && (
+                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300">
+                        × {reward.reward_quantity}
+                      </span>
+                    )}
                   </div>
+                  {reward.reward_item_id && (
+                    <div className="mb-2 text-xs text-blue-600 dark:text-blue-400">
+                      📦 Linked to Inventory Item
+                    </div>
+                  )}
                   <div className="text-xs text-zinc-500 dark:text-zinc-400">
                     Claimable: {formatDate(reward.reward_date)}
                   </div>
-                  {reward.is_claimed && (
-                    <div className="mt-2 text-xs text-green-600 dark:text-green-400">
-                      ✓ Claimed
-                    </div>
-                  )}
                 </div>
               ))}
           </div>

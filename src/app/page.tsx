@@ -172,7 +172,7 @@ export default function Home() {
                 <h2 className="mb-4 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
                   Quick Access
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <button
                     onClick={() => router.push('/images')}
                     className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-blue-500 hover:bg-blue-50 dark:border-zinc-700 dark:hover:bg-blue-900/20"
@@ -206,6 +206,74 @@ export default function Home() {
                       Manage 7-day countdown events with daily rewards
                     </p>
                   </button>
+                  <button
+                    onClick={() => router.push('/inventory')}
+                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-blue-500 hover:bg-blue-50 dark:border-zinc-700 dark:hover:bg-blue-900/20"
+                  >
+                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                      Inventory Management
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Manage all game items, badges, outfits, and collectibles
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => router.push('/rewards')}
+                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-blue-500 hover:bg-blue-50 dark:border-zinc-700 dark:hover:bg-blue-900/20"
+                  >
+                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                      Daily Rewards
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      View and claim your 7-day daily rewards
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => router.push('/easter-egg')}
+                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-purple-500 hover:bg-purple-50 dark:border-zinc-700 dark:hover:bg-purple-900/20"
+                  >
+                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                      Easter Eggs
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Manage and redeem Easter Egg codes
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => router.push('/community-goals')}
+                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-green-500 hover:bg-green-50 dark:border-zinc-700 dark:hover:bg-green-900/20"
+                  >
+                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                      Community Goals
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Participate in community goals and claim rewards
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => router.push('/founder-pack')}
+                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-purple-500 hover:bg-purple-50 dark:border-zinc-700 dark:hover:bg-purple-900/20"
+                  >
+                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                      Founder Pack
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Manage Founder Pack purchases and rewards
+                    </p>
+                  </button>
+                  {/* {user?.role === 'super_admin' && (
+                    <button
+                      onClick={() => router.push('/admins')}
+                      className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-purple-500 hover:bg-purple-50 dark:border-zinc-700 dark:hover:bg-purple-900/20"
+                    >
+                      <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                        Admin Management
+                      </h3>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        Manage user roles and admin permissions
+                      </p>
+                    </button>
+                  )} */}
                 </div>
               </div>
             )}

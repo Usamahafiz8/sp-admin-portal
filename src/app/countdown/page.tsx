@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { countdownApi, type CountdownEvent } from '../../lib/api';
+import { countdownApi, inventoryApi, type CountdownEvent, type InventoryItem } from '../../lib/api';
 import { Navigation } from '../../components/Navigation';
 
 export default function CountdownManagementPage() {
@@ -58,6 +58,54 @@ export default function CountdownManagementPage() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  // Determine event status based on dates
+  const getEventStatus = (event: CountdownEvent): 'running' | 'coming-soon' | 'complete' => {
+    const now = new Date();
+    const startDate = new Date(event.start_date);
+    const endDate = new Date(event.end_date);
+
+    // Complete: event has ended
+    if (endDate < now || event.status === 'completed') {
+      return 'complete';
+    }
+
+    // Coming Soon: event hasn't started yet
+    if (startDate > now) {
+      return 'coming-soon';
+    }
+
+    // Running: event is currently active (between start and end)
+    if (event.is_currently_active && event.status === 'active' && event.is_active) {
+      return 'running';
+    }
+
+    // Default to complete if not meeting other conditions
+    return 'complete';
+  };
+
+  const getEventStatusBadge = (status: 'running' | 'coming-soon' | 'complete') => {
+    switch (status) {
+      case 'running':
+        return (
+          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-300">
+            🟢 Running
+          </span>
+        );
+      case 'coming-soon':
+        return (
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+            🔵 Coming Soon
+          </span>
+        );
+      case 'complete':
+        return (
+          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+            ⚫ Complete
+          </span>
+        );
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -126,91 +174,192 @@ export default function CountdownManagementPage() {
           </div>
         ) : (
           <div className="grid gap-6">
-            {events.map((event) => (
-              <div
-                key={event.id}
-                className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800"
-              >
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex-1">
-                    <h2 className="mb-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-                      {event.title}
-                    </h2>
-                    <p className="mb-3 text-zinc-600 dark:text-zinc-400">{event.description}</p>
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-zinc-700 dark:text-zinc-300">Start:</span>{' '}
-                        <span className="text-zinc-600 dark:text-zinc-400">
-                          {formatDate(event.start_date)}
-                        </span>
+            {events.map((event) => {
+              const eventStatus = getEventStatus(event);
+              return (
+                <div
+                  key={event.id}
+                  className={`rounded-lg border p-6 ${
+                    eventStatus === 'running'
+                      ? 'border-green-300 bg-green-50/30 dark:border-green-700 dark:bg-green-900/10'
+                      : eventStatus === 'coming-soon'
+                      ? 'border-blue-300 bg-blue-50/30 dark:border-blue-700 dark:bg-blue-900/10'
+                      : 'border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800'
+                  }`}
+                >
+                  <div className="mb-4 flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="mb-2 flex items-center gap-3">
+                        <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                          {event.title}
+                        </h2>
+                        {getEventStatusBadge(eventStatus)}
                       </div>
-                      <div>
-                        <span className="font-medium text-zinc-700 dark:text-zinc-300">End:</span>{' '}
-                        <span className="text-zinc-600 dark:text-zinc-400">
-                          {formatDate(event.end_date)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-zinc-700 dark:text-zinc-300">Days Remaining:</span>{' '}
-                        <span className="text-zinc-600 dark:text-zinc-400">
-                          {event.days_remaining}
-                        </span>
-                      </div>
-                      {event.current_day && (
+                      <p className="mb-3 text-zinc-600 dark:text-zinc-400">{event.description}</p>
+                      <div className="flex flex-wrap gap-4 text-sm">
                         <div>
-                          <span className="font-medium text-zinc-700 dark:text-zinc-300">Current Day:</span>{' '}
+                          <span className="font-medium text-zinc-700 dark:text-zinc-300">Start:</span>{' '}
                           <span className="text-zinc-600 dark:text-zinc-400">
-                            Day {event.current_day}
+                            {formatDate(event.start_date)}
                           </span>
                         </div>
+                        <div>
+                          <span className="font-medium text-zinc-700 dark:text-zinc-300">End:</span>{' '}
+                          <span className="text-zinc-600 dark:text-zinc-400">
+                            {formatDate(event.end_date)}
+                          </span>
+                        </div>
+                        {eventStatus === 'running' && (
+                          <>
+                            <div>
+                              <span className="font-medium text-zinc-700 dark:text-zinc-300">Days Remaining:</span>{' '}
+                              <span className="font-semibold text-green-600 dark:text-green-400">
+                                {event.days_remaining}
+                              </span>
+                            </div>
+                            {event.current_day && (
+                              <div>
+                                <span className="font-medium text-zinc-700 dark:text-zinc-300">Current Day:</span>{' '}
+                                <span className="font-semibold text-green-600 dark:text-green-400">
+                                  Day {event.current_day}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {eventStatus === 'coming-soon' && (
+                          <div>
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">Starts in:</span>{' '}
+                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                              {Math.ceil((new Date(event.start_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days
+                            </span>
+                          </div>
+                        )}
+                        {eventStatus === 'complete' && (
+                          <div>
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">Completed:</span>{' '}
+                            <span className="text-zinc-600 dark:text-zinc-400">
+                              {formatDate(event.end_date)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ml-4 flex flex-col gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(
+                          event.status
+                        )}`}
+                      >
+                        {event.status}
+                      </span>
+                      {!event.is_active && (
+                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300">
+                          Inactive
+                        </span>
                       )}
                     </div>
                   </div>
-                  <div className="ml-4 flex gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(
-                        event.status
-                      )}`}
-                    >
-                      {event.status}
-                    </span>
-                    {!event.is_active && (
-                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300">
-                        Inactive
-                      </span>
-                    )}
-                  </div>
-                </div>
 
                 {/* Rewards Grid */}
                 <div className="mb-4">
                   <h3 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                     Rewards (7 Days)
                   </h3>
-                  <div className="grid gap-2 md:grid-cols-7">
+                  <div className="grid gap-3 md:grid-cols-7">
                     {event.rewards
                       .sort((a, b) => a.day_number - b.day_number)
                       .map((reward) => (
                         <div
                           key={reward.id}
-                          className={`rounded-md border p-3 text-center text-sm ${
+                          className={`group relative rounded-lg border-2 p-4 text-center transition-all hover:shadow-lg ${
                             reward.can_claim
-                              ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
-                              : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-700/50'
+                              ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
+                              : 'border-zinc-300 bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700/50'
                           }`}
                         >
-                          <div className="mb-1 font-semibold text-zinc-900 dark:text-zinc-50">
+                          {/* Reward Image */}
+                          <div className="mb-3 flex items-center justify-center">
+                            {reward.preview_url || reward.icon_url ? (
+                              <img
+                                src={reward.preview_url || reward.icon_url || ''}
+                                alt={reward.reward_name}
+                                className="h-16 w-16 rounded-lg object-cover border-2 border-zinc-300 dark:border-zinc-600"
+                                onError={(e) => {
+                                  // Fallback to icon if preview fails
+                                  if (reward.icon_url && (e.target as HTMLImageElement).src !== reward.icon_url) {
+                                    (e.target as HTMLImageElement).src = reward.icon_url || '';
+                                  } else {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-700">
+                                <span className="text-2xl">
+                                  {reward.reward_type === 'currency' ? '💰' : 
+                                   reward.reward_type === 'experience' ? '⭐' : 
+                                   reward.reward_type === 'badge' ? '🏅' : 
+                                   reward.reward_type === 'title' ? '👑' : '📦'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Day Number */}
+                          <div className="mb-1 font-bold text-zinc-900 dark:text-zinc-50">
                             Day {reward.day_number}
                           </div>
-                          <div className="mb-1 text-xs text-zinc-600 dark:text-zinc-400">
+
+                          {/* Reward Name */}
+                          <div className="mb-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 line-clamp-2">
                             {reward.reward_name}
                           </div>
-                          <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {reward.reward_type} • {reward.reward_quantity}
+
+                          {/* Reward Details */}
+                          <div className="mb-2 space-y-1">
+                            <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                              <span className="font-medium capitalize">{reward.reward_type}</span>
+                              {reward.reward_quantity > 1 && (
+                                <span className="ml-1">× {reward.reward_quantity}</span>
+                              )}
+                            </div>
+                            {reward.reward_rarity && (
+                              <div className={`text-xs font-medium capitalize ${
+                                reward.reward_rarity === 'legendary' ? 'text-purple-600 dark:text-purple-400' :
+                                reward.reward_rarity === 'epic' ? 'text-blue-600 dark:text-blue-400' :
+                                reward.reward_rarity === 'rare' ? 'text-green-600 dark:text-green-400' :
+                                'text-zinc-600 dark:text-zinc-400'
+                              }`}>
+                                {reward.reward_rarity}
+                              </div>
+                            )}
                           </div>
-                          {reward.can_claim && (
-                            <div className="mt-1 text-xs text-green-600 dark:text-green-400">
-                              ✓ Available
+
+                          {/* Status Indicators */}
+                          <div className="mt-2 space-y-1">
+                            {reward.can_claim && (
+                              <div className="rounded-full bg-green-200 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-800 dark:text-green-200">
+                                ✓ Available
+                              </div>
+                            )}
+                            {reward.is_claimed && (
+                              <div className="rounded-full bg-blue-200 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-800 dark:text-blue-200">
+                                ✓ Claimed
+                              </div>
+                            )}
+                            {reward.reward_item_id && (
+                              <div className="text-xs text-blue-600 dark:text-blue-400">
+                                📦 Inventory Item
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Hover Tooltip with Description */}
+                          {reward.reward_description && (
+                            <div className="absolute left-0 top-full z-10 mt-2 hidden w-64 rounded-lg bg-zinc-900 p-3 text-xs text-zinc-50 shadow-xl group-hover:block dark:bg-zinc-100 dark:text-zinc-900">
+                              <div className="font-semibold mb-1">{reward.reward_name}</div>
+                              <div className="text-zinc-300 dark:text-zinc-600">{reward.reward_description}</div>
                             </div>
                           )}
                         </div>
@@ -240,7 +389,8 @@ export default function CountdownManagementPage() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -281,7 +431,7 @@ function CreateCountdownModal({
     reward_name: string;
     reward_description: string;
     reward_type: 'item' | 'currency' | 'experience' | 'badge' | 'title';
-    reward_item_id?: number | null;
+    reward_item_id?: string | null;
     reward_quantity: number;
     reward_rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
     is_active: boolean;
@@ -298,6 +448,8 @@ function CreateCountdownModal({
       is_active: true,
     }))
   );
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -311,6 +463,10 @@ function CreateCountdownModal({
       for (const reward of rewards) {
         if (!reward.reward_date || !reward.reward_name || !reward.reward_description) {
           throw new Error(`Please fill in all fields for Day ${reward.day_number}`);
+        }
+        // If reward type is 'item', must have an inventory item selected
+        if (reward.reward_type === 'item' && !reward.reward_item_id) {
+          throw new Error(`Day ${reward.day_number}: Please select an inventory item for item rewards`);
         }
       }
 
@@ -350,9 +506,42 @@ function CreateCountdownModal({
     }
   };
 
+  // Fetch inventory items when modal opens
+  useEffect(() => {
+    const fetchInventoryItems = async () => {
+      try {
+        setLoadingItems(true);
+        const items = await inventoryApi.getAll();
+        setInventoryItems(items);
+      } catch (err) {
+        console.error('Error fetching inventory items:', err);
+      } finally {
+        setLoadingItems(false);
+      }
+    };
+    fetchInventoryItems();
+  }, []);
+
   const updateReward = (index: number, field: string, value: any) => {
     const newRewards = [...rewards];
     newRewards[index] = { ...newRewards[index], [field]: value };
+    
+    // If changing reward_type to 'item', reset item_id if it was set
+    if (field === 'reward_type' && value !== 'item') {
+      newRewards[index].reward_item_id = null;
+    }
+    
+    // If selecting an inventory item, auto-fill name and description
+    if (field === 'reward_item_id' && value) {
+      const selectedItem = inventoryItems.find(item => item.id === value);
+      if (selectedItem) {
+        newRewards[index].reward_name = selectedItem.item_name;
+        newRewards[index].reward_description = selectedItem.item_description || '';
+        newRewards[index].reward_rarity = selectedItem.rarity as any;
+        newRewards[index].reward_quantity = 1;
+      }
+    }
+    
     setRewards(newRewards);
   };
 
@@ -546,16 +735,45 @@ function CreateCountdownModal({
                       </select>
                     </div>
                     {reward.reward_type === 'item' && (
-                      <div>
-                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                          Item ID
+                      <div className="md:col-span-2 lg:col-span-4">
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                          Select Inventory Item * (Links reward to inventory)
                         </label>
-                        <input
-                          type="number"
-                          value={reward.reward_item_id || ''}
-                          onChange={(e) => updateReward(index, 'reward_item_id', e.target.value ? parseInt(e.target.value) : null)}
-                          className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-                        />
+                        {loadingItems ? (
+                          <div className="text-xs text-zinc-500 dark:text-zinc-400">Loading items...</div>
+                        ) : (
+                          <select
+                            value={reward.reward_item_id || ''}
+                            onChange={(e) => updateReward(index, 'reward_item_id', e.target.value || null)}
+                            required={reward.reward_type === 'item'}
+                            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
+                          >
+                            <option value="">-- Select an inventory item --</option>
+                            {inventoryItems
+                              .filter(item => item.is_active)
+                              .map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.item_name} ({item.item_id}) - {item.item_type} - {item.rarity}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                        {reward.reward_item_id && (
+                          <div className="mt-2 rounded-md bg-blue-50 p-2 text-xs dark:bg-blue-900/20">
+                            <span className="font-medium text-blue-800 dark:text-blue-400">✓ Linked to Inventory</span>
+                            <p className="text-blue-600 dark:text-blue-300 mt-1">
+                              {(() => {
+                                const selectedItem = inventoryItems.find(item => item.id === reward.reward_item_id);
+                                return selectedItem 
+                                  ? `Item ID: ${selectedItem.item_id} | Type: ${selectedItem.item_type} | Rarity: ${selectedItem.rarity}`
+                                  : 'Item details will be loaded';
+                              })()}
+                            </p>
+                          </div>
+                        )}
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          Select an item from inventory. Reward will be delivered to user's inventory when claimed.
+                        </p>
                       </div>
                     )}
                   </div>
