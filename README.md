@@ -1,36 +1,162 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Admin Control Panel
+
+A Next.js application for managing the Steven & Parker backend with super admin privileges.
+
+## Features
+
+- **Super Admin Authentication**: Secure login system restricted to super admin users only
+- **Image Management**: Full CRUD operations for image management
+- **Public Image Management**: View and manage publicly accessible images
+- **Modern UI**: Clean, responsive interface with dark mode support
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ and npm
+- Backend API running on `http://localhost:3000`
+
+### Installation
+
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Configure environment variables:
+Create a `.env.local` file in the root directory:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Running the Application
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Start the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+2. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-To learn more about Next.js, take a look at the following resources:
+## Authentication
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Super Admin Login
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Only users with `super_admin` role can access this application.
 
-## Deploy on Vercel
+**Default Credentials:**
+- Email: `superadmin@stevenparker.com`
+- Password: `SuperAdmin@2024!`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+⚠️ **Important**: Change the default password after first login!
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### How to Login
+
+1. Click the "Super Admin Login" button on the main page
+2. Enter your super admin email and password
+3. Upon successful login, you'll have access to all admin features
+
+## Project Structure
+
+```
+admin-control/
+├── src/
+│   ├── app/              # Next.js app directory
+│   │   ├── layout.tsx    # Root layout with AuthProvider
+│   │   └── page.tsx      # Main page component
+│   ├── components/       # React components
+│   │   ├── LoginModal.tsx
+│   │   └── AuthProviderWrapper.tsx
+│   └── contexts/         # React contexts
+│       └── AuthContext.tsx
+├── .env.local            # Environment variables
+└── package.json
+```
+
+## API Integration
+
+The application connects to the backend API at the URL specified in `NEXT_PUBLIC_API_URL`.
+
+### Authentication Endpoint
+- `POST /api/v1/auth/super-admin/login` - Super admin login
+
+### Image Management Endpoints
+- `GET /api/v1/image-management` - Get all images (Admin only)
+- `POST /api/v1/image-management` - Create image (Admin only)
+- `PUT /api/v1/image-management/:id` - Update image (Admin only)
+- `DELETE /api/v1/image-management/:id` - Delete image (Admin only)
+- `GET /api/v1/image-management/public` - Get published images (Public)
+
+## Security
+
+- JWT token authentication
+- Token stored in localStorage
+- Role-based access control (super_admin only)
+- Secure password handling
+
+## Development
+
+### Build for Production
+
+```bash
+npm run build
+npm start
+```
+
+### Linting
+
+```bash
+npm run lint
+```
+
+## Troubleshooting
+
+### "Unexpected token '<', "<!DOCTYPE "... is not valid JSON" Error
+
+This error occurs when the API returns HTML instead of JSON. Common causes:
+
+1. **Backend server is not running**
+   - Start the backend: `cd steven-and-parker && npm run start:dev`
+   - Verify it's running on `http://localhost:3000`
+
+2. **Port conflict**
+   - Backend should run on port 3000
+   - Next.js will automatically use port 3001 if 3000 is taken
+   - Check which port Next.js is using in the terminal output
+
+3. **Wrong API URL**
+   - Verify `.env.local` has: `NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1`
+   - Restart the Next.js dev server after changing `.env.local`
+
+4. **CORS issues**
+   - The backend should have CORS enabled (already configured)
+   - Check browser console for CORS errors
+
+### Cannot Login
+
+1. Verify the backend API is running on the correct port
+2. Check that `NEXT_PUBLIC_API_URL` in `.env.local` matches your backend URL
+3. Ensure you're using super admin credentials (not regular admin)
+4. Check browser console for error messages
+5. Verify the backend endpoint: `POST http://localhost:3000/api/v1/auth/super-admin/login`
+
+### API Connection Issues
+
+1. **Test backend connectivity:**
+   ```bash
+   curl http://localhost:3000/api/v1
+   ```
+
+2. **Test login endpoint:**
+   ```bash
+   curl -X POST http://localhost:3000/api/v1/auth/super-admin/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"superadmin@stevenparker.com","password":"SuperAdmin@2024!"}'
+   ```
+
+3. Verify CORS settings on the backend
+4. Check browser Network tab for actual request/response
+
+## License
+
+Private - Steven & Parker
