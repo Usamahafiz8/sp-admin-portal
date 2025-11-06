@@ -1310,6 +1310,23 @@ export const founderPackApi = {
     );
     return response.data || response;
   },
+
+  // Admin: Founder Pack Settings
+  getSettings: async (): Promise<FounderPackSettings> => {
+    const response = await apiRequest<FounderPackSettings>('/founder-pack/admin/settings');
+    return response.data || response;
+  },
+
+  updateSettings: async (settings: Partial<FounderPackSettings>): Promise<{ success: boolean; message: string; settings: FounderPackSettings }> => {
+    const response = await apiRequest<{ success: boolean; message: string; settings: FounderPackSettings }>(
+      '/founder-pack/admin/settings',
+      {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }
+    );
+    return response.data || response;
+  },
 };
 
 export type {
