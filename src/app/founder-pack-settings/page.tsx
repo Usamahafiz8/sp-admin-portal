@@ -12,6 +12,7 @@ export default function FounderPackSettingsPage() {
   const [settings, setSettings] = useState<FounderPackSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -100,6 +101,59 @@ export default function FounderPackSettingsPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleUpdateContentIcon = async (itemId: 'founder_outfit' | 'dino_gems' | 'founder_frame', iconUrl: string) => {
+    if (!iconUrl.trim()) {
+      setError('Please enter a valid icon URL');
+      return;
+    }
+
+    try {
+      setSavingFields(prev => new Set(prev).add(itemId));
+      setError(null);
+      setSuccess(null);
+
+      await founderPackApi.updateContentIcon(itemId, iconUrl);
+      setSuccess(`${itemId.replace('_', ' ')} icon updated successfully!`);
+      await fetchSettings();
+    } catch (err: any) {
+      console.error(`Error updating ${itemId} icon:`, err);
+      setError(err.message || `Failed to update ${itemId} icon`);
+    } finally {
+      setSavingFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleUpdateRewardIcon = async (tier: 1 | 2 | 3, iconUrl: string) => {
+    if (!iconUrl.trim()) {
+      setError('Please enter a valid icon URL');
+      return;
+    }
+
+    try {
+      const fieldKey = `tier_${tier}_reward_icon_url`;
+      setSavingFields(prev => new Set(prev).add(fieldKey));
+      setError(null);
+      setSuccess(null);
+
+      await founderPackApi.updateRewardIcon(tier, iconUrl);
+      setSuccess(`Tier ${tier} reward icon updated successfully!`);
+      await fetchSettings();
+    } catch (err: any) {
+      console.error(`Error updating tier ${tier} reward icon:`, err);
+      setError(err.message || `Failed to update tier ${tier} reward icon`);
+    } finally {
+      setSavingFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(`tier_${tier}_reward_icon_url`);
+        return newSet;
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
@@ -149,13 +203,23 @@ export default function FounderPackSettingsPage() {
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                   Founder Outfit Icon URL
                 </label>
-                <input
-                  type="url"
-                  value={formData.founder_outfit_icon_url}
-                  onChange={(e) => handleInputChange('founder_outfit_icon_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://cdn.example.com/founder_outfit.png"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={formData.founder_outfit_icon_url}
+                    onChange={(e) => handleInputChange('founder_outfit_icon_url', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://cdn.example.com/founder_outfit.png"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateContentIcon('founder_outfit', formData.founder_outfit_icon_url)}
+                    disabled={savingFields.has('founder_outfit') || !formData.founder_outfit_icon_url.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {savingFields.has('founder_outfit') ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
                 {formData.founder_outfit_icon_url && (
                   <div className="mt-2">
                     <img
@@ -174,13 +238,23 @@ export default function FounderPackSettingsPage() {
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                   Dino Gems Icon URL
                 </label>
-                <input
-                  type="url"
-                  value={formData.dino_gems_icon_url}
-                  onChange={(e) => handleInputChange('dino_gems_icon_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://cdn.example.com/dino_gems.png"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={formData.dino_gems_icon_url}
+                    onChange={(e) => handleInputChange('dino_gems_icon_url', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://cdn.example.com/dino_gems.png"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateContentIcon('dino_gems', formData.dino_gems_icon_url)}
+                    disabled={savingFields.has('dino_gems') || !formData.dino_gems_icon_url.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {savingFields.has('dino_gems') ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
                 {formData.dino_gems_icon_url && (
                   <div className="mt-2">
                     <img
@@ -199,13 +273,23 @@ export default function FounderPackSettingsPage() {
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                   Founder Frame Icon URL
                 </label>
-                <input
-                  type="url"
-                  value={formData.founder_frame_icon_url}
-                  onChange={(e) => handleInputChange('founder_frame_icon_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://cdn.example.com/founder_frame.png"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={formData.founder_frame_icon_url}
+                    onChange={(e) => handleInputChange('founder_frame_icon_url', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://cdn.example.com/founder_frame.png"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateContentIcon('founder_frame', formData.founder_frame_icon_url)}
+                    disabled={savingFields.has('founder_frame') || !formData.founder_frame_icon_url.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {savingFields.has('founder_frame') ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
                 {formData.founder_frame_icon_url && (
                   <div className="mt-2">
                     <img
@@ -232,13 +316,23 @@ export default function FounderPackSettingsPage() {
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                   Tier 1 Reward Icon URL (Tipping Hat Emote)
                 </label>
-                <input
-                  type="url"
-                  value={formData.tier_1_reward_icon_url}
-                  onChange={(e) => handleInputChange('tier_1_reward_icon_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://cdn.example.com/tipping_hat_emote.png"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={formData.tier_1_reward_icon_url}
+                    onChange={(e) => handleInputChange('tier_1_reward_icon_url', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://cdn.example.com/tipping_hat_emote.png"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateRewardIcon(1, formData.tier_1_reward_icon_url)}
+                    disabled={savingFields.has('tier_1_reward_icon_url') || !formData.tier_1_reward_icon_url.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {savingFields.has('tier_1_reward_icon_url') ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
                 {formData.tier_1_reward_icon_url && (
                   <div className="mt-2">
                     <img
@@ -257,13 +351,23 @@ export default function FounderPackSettingsPage() {
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                   Tier 2 Reward Icon URL (Special Founder Badge)
                 </label>
-                <input
-                  type="url"
-                  value={formData.tier_2_reward_icon_url}
-                  onChange={(e) => handleInputChange('tier_2_reward_icon_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://cdn.example.com/founder_badge.png"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={formData.tier_2_reward_icon_url}
+                    onChange={(e) => handleInputChange('tier_2_reward_icon_url', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://cdn.example.com/founder_badge.png"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateRewardIcon(2, formData.tier_2_reward_icon_url)}
+                    disabled={savingFields.has('tier_2_reward_icon_url') || !formData.tier_2_reward_icon_url.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {savingFields.has('tier_2_reward_icon_url') ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
                 {formData.tier_2_reward_icon_url && (
                   <div className="mt-2">
                     <img
@@ -282,13 +386,23 @@ export default function FounderPackSettingsPage() {
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                   Tier 3 Reward Icon URL (Founder's Flag Back Accessory)
                 </label>
-                <input
-                  type="url"
-                  value={formData.tier_3_reward_icon_url}
-                  onChange={(e) => handleInputChange('tier_3_reward_icon_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://cdn.example.com/founders_flag_back_accessory.png"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={formData.tier_3_reward_icon_url}
+                    onChange={(e) => handleInputChange('tier_3_reward_icon_url', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://cdn.example.com/founders_flag_back_accessory.png"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateRewardIcon(3, formData.tier_3_reward_icon_url)}
+                    disabled={savingFields.has('tier_3_reward_icon_url') || !formData.tier_3_reward_icon_url.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {savingFields.has('tier_3_reward_icon_url') ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
                 {formData.tier_3_reward_icon_url && (
                   <div className="mt-2">
                     <img

@@ -1327,6 +1327,30 @@ export const founderPackApi = {
     );
     return response.data || response;
   },
+
+  // Update individual content icon
+  updateContentIcon: async (itemId: 'founder_outfit' | 'dino_gems' | 'founder_frame', iconUrl: string): Promise<{ success: boolean; message: string; data: { item_id: string; icon_url: string } }> => {
+    const response = await apiRequest<{ success: boolean; message: string; data: { item_id: string; icon_url: string } }>(
+      '/founder-pack/contents/icon',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ item_id: itemId, icon_url: iconUrl }),
+      }
+    );
+    return response.data || response;
+  },
+
+  // Update individual community goal reward icon
+  updateRewardIcon: async (tier: 1 | 2 | 3, iconUrl: string): Promise<{ success: boolean; message: string; data: { tier: number; icon_url: string } }> => {
+    const response = await apiRequest<{ success: boolean; message: string; data: { tier: number; icon_url: string } }>(
+      '/founder-pack/community-goals/reward-icon',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ tier, icon_url: iconUrl }),
+      }
+    );
+    return response.data || response;
+  },
 };
 
 export type {
@@ -1346,4 +1370,299 @@ export type {
   Founder,
   AvailableCommunityGoalReward,
   ClaimCommunityGoalRewardResponse,
+};
+
+// Tapathon Types
+export interface Tap {
+  id: string;
+  user_id: string;
+  platform: 'ios' | 'android' | 'web';
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface TapListResponse {
+  taps: Tap[];
+  total: number;
+}
+
+export interface CreateTapDto {
+  user_id?: string;
+  platform: 'ios' | 'android' | 'web';
+}
+
+export interface UpdateTapDto {
+  platform?: 'ios' | 'android' | 'web';
+}
+
+export interface CommunityGoal {
+  id: string;
+  tier_number: number;
+  target_taps: number;
+  tier_name: string;
+  is_completed: boolean;
+  completed_at: Date | null;
+  current_taps: number;
+  is_active: boolean;
+  progress_percentage: number;
+  created_at: Date;
+  updated_at: Date;
+  reward_icon_url?: string | null;
+}
+
+export interface CommunityGoalListResponse {
+  goals: CommunityGoal[];
+  total: number;
+}
+
+export interface CreateCommunityGoalDto {
+  tier_number: number;
+  target_taps: number;
+  tier_name: string;
+}
+
+export interface UpdateCommunityGoalDto {
+  tier_number?: number;
+  target_taps?: number;
+  tier_name?: string;
+  is_completed?: boolean;
+  current_taps?: number;
+  is_active?: boolean;
+}
+
+export interface UpdateCommunityGoalRewardIconDto {
+  icon_url: string;
+}
+
+export interface TapReward {
+  reward_id: string;
+  user_id: string;
+  session_id?: string | null;
+  reward_type: 'score_milestone' | 'combo_achievement' | 'session_completion' | 'leaderboard_position' | 'daily_bonus' | 'frenzy_bonus';
+  reward_name: string;
+  reward_description: string;
+  reward_category: 'currency' | 'item' | 'badge' | 'title' | 'experience';
+  reward_item_id: string;
+  reward_quantity: number;
+  reward_rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
+  score_threshold: number;
+  combo_threshold: number;
+  is_claimed: boolean;
+  claimed_date?: string | null;
+  earned_date: string;
+  score_earned_at?: number | null;
+  combo_earned_at?: number | null;
+  is_frenzy_reward: boolean;
+  community_goal_id?: string;
+  community_goal_tier?: number;
+  community_goal_name?: string;
+}
+
+export interface TapRewardListResponse {
+  rewards: TapReward[];
+  total: number;
+}
+
+export interface CreateTapRewardDto {
+  user_id?: string;
+  session_id?: string;
+  reward_type: 'score_milestone' | 'combo_achievement' | 'session_completion' | 'leaderboard_position' | 'daily_bonus' | 'frenzy_bonus';
+  reward_name: string;
+  reward_description: string;
+  reward_category: 'currency' | 'item' | 'badge' | 'title' | 'experience';
+  reward_item_id: string;
+  reward_quantity: number;
+  reward_rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
+  score_threshold?: number;
+  combo_threshold?: number;
+  score_earned_at?: number;
+  combo_earned_at?: number;
+  is_frenzy_reward?: boolean;
+  reward_metadata?: string;
+}
+
+export interface UpdateTapRewardDto {
+  session_id?: string;
+  reward_type?: 'score_milestone' | 'combo_achievement' | 'session_completion' | 'leaderboard_position' | 'daily_bonus' | 'frenzy_bonus';
+  reward_name?: string;
+  reward_description?: string;
+  reward_category?: 'currency' | 'item' | 'badge' | 'title' | 'experience';
+  reward_item_id?: string;
+  reward_quantity?: number;
+  reward_rarity?: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
+  score_threshold?: number;
+  combo_threshold?: number;
+  is_claimed?: boolean;
+  score_earned_at?: number;
+  combo_earned_at?: number;
+  is_frenzy_reward?: boolean;
+  reward_metadata?: string;
+}
+
+// Tapathon API
+export const tapathonApi = {
+  // Taps CRUD
+  getAllTaps: async (params?: { limit?: number; offset?: number; user_id?: string }): Promise<TapListResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.user_id) queryParams.append('user_id', params.user_id);
+    const query = queryParams.toString();
+    const response = await apiRequest<TapListResponse>(`/tap/taps${query ? `?${query}` : ''}`);
+    return response.data || response;
+  },
+
+  getTapById: async (id: string): Promise<Tap> => {
+    const response = await apiRequest<Tap>(`/tap/taps/${id}`);
+    return response.data || response;
+  },
+
+  getTapsByUserId: async (userId: string, params?: { limit?: number; offset?: number }): Promise<TapListResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    const query = queryParams.toString();
+    const response = await apiRequest<TapListResponse>(`/tap/taps/user/${userId}${query ? `?${query}` : ''}`);
+    return response.data || response;
+  },
+
+  createTap: async (data: CreateTapDto): Promise<Tap> => {
+    const response = await apiRequest<Tap>('/tap/taps', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data || response;
+  },
+
+  updateTap: async (id: string, data: UpdateTapDto): Promise<Tap> => {
+    const response = await apiRequest<Tap>(`/tap/taps/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data || response;
+  },
+
+  deleteTap: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiRequest<{ success: boolean; message: string }>(`/tap/taps/${id}`, {
+      method: 'DELETE',
+    });
+    return response.data || response;
+  },
+
+  deleteTaps: async (tapIds: string[]): Promise<{ success: boolean; message: string; deleted_count: number }> => {
+    const response = await apiRequest<{ success: boolean; message: string; deleted_count: number }>('/tap/taps', {
+      method: 'DELETE',
+      body: JSON.stringify({ tap_ids: tapIds }),
+    });
+    return response.data || response;
+  },
+
+  // Community Goals CRUD
+  getAllCommunityGoals: async (params?: { limit?: number; offset?: number }): Promise<CommunityGoalListResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    const query = queryParams.toString();
+    const response = await apiRequest<CommunityGoalListResponse>(`/tap/community-goals/all${query ? `?${query}` : ''}`);
+    return response.data || response;
+  },
+
+  getCommunityGoalById: async (id: string): Promise<CommunityGoal> => {
+    const response = await apiRequest<CommunityGoal>(`/tap/community-goals/${id}`);
+    return response.data || response;
+  },
+
+  getCommunityGoalByTier: async (tierNumber: number): Promise<CommunityGoal> => {
+    const response = await apiRequest<CommunityGoal>(`/tap/community-goals/tier/${tierNumber}`);
+    return response.data || response;
+  },
+
+  createCommunityGoal: async (data: CreateCommunityGoalDto): Promise<CommunityGoal> => {
+    const response = await apiRequest<CommunityGoal>('/tap/community-goals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data || response;
+  },
+
+  updateCommunityGoal: async (id: string, data: UpdateCommunityGoalDto): Promise<CommunityGoal> => {
+    const response = await apiRequest<CommunityGoal>(`/tap/community-goals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data || response;
+  },
+
+  updateCommunityGoalRewardIcon: async (id: string, data: UpdateCommunityGoalRewardIconDto): Promise<any> => {
+    const response = await apiRequest<any>(`/tap/community-goals/${id}/reward-icon`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data || response;
+  },
+
+  deleteCommunityGoal: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiRequest<{ success: boolean; message: string }>(`/tap/community-goals/${id}`, {
+      method: 'DELETE',
+    });
+    return response.data || response;
+  },
+
+  // Tap Rewards CRUD
+  getAllTapRewards: async (params?: { limit?: number; offset?: number; user_id?: string; is_claimed?: boolean }): Promise<TapRewardListResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.user_id) queryParams.append('user_id', params.user_id);
+    if (params?.is_claimed !== undefined) queryParams.append('is_claimed', params.is_claimed.toString());
+    const query = queryParams.toString();
+    const response = await apiRequest<TapRewardListResponse>(`/tap/rewards/all${query ? `?${query}` : ''}`);
+    return response.data || response;
+  },
+
+  getTapRewardById: async (id: string): Promise<TapReward> => {
+    const response = await apiRequest<TapReward>(`/tap/rewards/${id}`);
+    return response.data || response;
+  },
+
+  getTapRewardsByUserId: async (userId: string, params?: { limit?: number; offset?: number; is_claimed?: boolean }): Promise<TapRewardListResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.is_claimed !== undefined) queryParams.append('is_claimed', params.is_claimed.toString());
+    const query = queryParams.toString();
+    const response = await apiRequest<TapRewardListResponse>(`/tap/rewards/user/${userId}${query ? `?${query}` : ''}`);
+    return response.data || response;
+  },
+
+  createTapReward: async (data: CreateTapRewardDto): Promise<TapReward> => {
+    const response = await apiRequest<TapReward>('/tap/rewards', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data || response;
+  },
+
+  updateTapReward: async (id: string, data: UpdateTapRewardDto): Promise<TapReward> => {
+    const response = await apiRequest<TapReward>(`/tap/rewards/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data || response;
+  },
+
+  deleteTapReward: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiRequest<{ success: boolean; message: string }>(`/tap/rewards/${id}`, {
+      method: 'DELETE',
+    });
+    return response.data || response;
+  },
+
+  deleteTapRewards: async (rewardIds: string[]): Promise<{ success: boolean; message: string; deleted_count: number }> => {
+    const response = await apiRequest<{ success: boolean; message: string; deleted_count: number }>('/tap/rewards', {
+      method: 'DELETE',
+      body: JSON.stringify({ reward_ids: rewardIds }),
+    });
+    return response.data || response;
+  },
 };
