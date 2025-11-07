@@ -1395,7 +1395,7 @@ export interface UpdateTapDto {
   platform?: 'ios' | 'android' | 'web';
 }
 
-export interface CommunityGoal {
+export interface TapathonCommunityGoal {
   id: string;
   tier_number: number;
   target_taps: number;
@@ -1410,18 +1410,18 @@ export interface CommunityGoal {
   reward_icon_url?: string | null;
 }
 
-export interface CommunityGoalListResponse {
-  goals: CommunityGoal[];
+export interface TapathonCommunityGoalListResponse {
+  goals: TapathonCommunityGoal[];
   total: number;
 }
 
-export interface CreateCommunityGoalDto {
+export interface CreateTapathonCommunityGoalDto {
   tier_number: number;
   target_taps: number;
   tier_name: string;
 }
 
-export interface UpdateCommunityGoalDto {
+export interface UpdateTapathonCommunityGoalDto {
   tier_number?: number;
   target_taps?: number;
   tier_name?: string;
@@ -1430,7 +1430,7 @@ export interface UpdateCommunityGoalDto {
   is_active?: boolean;
 }
 
-export interface UpdateCommunityGoalRewardIconDto {
+export interface UpdateTapathonCommunityGoalRewardIconDto {
   icon_url: string;
 }
 
@@ -1558,42 +1558,42 @@ export const tapathonApi = {
   },
 
   // Community Goals CRUD
-  getAllCommunityGoals: async (params?: { limit?: number; offset?: number }): Promise<CommunityGoalListResponse> => {
+  getAllCommunityGoals: async (params?: { limit?: number; offset?: number }): Promise<TapathonCommunityGoalListResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
     const query = queryParams.toString();
-    const response = await apiRequest<CommunityGoalListResponse>(`/tap/community-goals/all${query ? `?${query}` : ''}`);
+    const response = await apiRequest<TapathonCommunityGoalListResponse>(`/tap/community-goals/all${query ? `?${query}` : ''}`);
     return response.data || response;
   },
 
-  getCommunityGoalById: async (id: string): Promise<CommunityGoal> => {
-    const response = await apiRequest<CommunityGoal>(`/tap/community-goals/${id}`);
+  getCommunityGoalById: async (id: string): Promise<TapathonCommunityGoal> => {
+    const response = await apiRequest<TapathonCommunityGoal>(`/tap/community-goals/${id}`);
     return response.data || response;
   },
 
-  getCommunityGoalByTier: async (tierNumber: number): Promise<CommunityGoal> => {
-    const response = await apiRequest<CommunityGoal>(`/tap/community-goals/tier/${tierNumber}`);
+  getCommunityGoalByTier: async (tierNumber: number): Promise<TapathonCommunityGoal> => {
+    const response = await apiRequest<TapathonCommunityGoal>(`/tap/community-goals/tier/${tierNumber}`);
     return response.data || response;
   },
 
-  createCommunityGoal: async (data: CreateCommunityGoalDto): Promise<CommunityGoal> => {
-    const response = await apiRequest<CommunityGoal>('/tap/community-goals', {
+  createCommunityGoal: async (data: CreateTapathonCommunityGoalDto): Promise<TapathonCommunityGoal> => {
+    const response = await apiRequest<TapathonCommunityGoal>('/tap/community-goals', {
       method: 'POST',
       body: JSON.stringify(data),
     });
     return response.data || response;
   },
 
-  updateCommunityGoal: async (id: string, data: UpdateCommunityGoalDto): Promise<CommunityGoal> => {
-    const response = await apiRequest<CommunityGoal>(`/tap/community-goals/${id}`, {
+  updateCommunityGoal: async (id: string, data: UpdateTapathonCommunityGoalDto): Promise<TapathonCommunityGoal> => {
+    const response = await apiRequest<TapathonCommunityGoal>(`/tap/community-goals/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
     return response.data || response;
   },
 
-  updateCommunityGoalRewardIcon: async (id: string, data: UpdateCommunityGoalRewardIconDto): Promise<any> => {
+  updateCommunityGoalRewardIcon: async (id: string, data: UpdateTapathonCommunityGoalRewardIconDto): Promise<any> => {
     const response = await apiRequest<any>(`/tap/community-goals/${id}/reward-icon`, {
       method: 'PUT',
       body: JSON.stringify(data),

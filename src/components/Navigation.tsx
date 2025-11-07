@@ -93,6 +93,16 @@ export function Navigation() {
                 Community Goals
               </Link>
               <Link
+                href="/tapathon"
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/tapathon' || pathname?.startsWith('/tapathon')
+                    ? 'bg-orange-600 text-white'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Tapathon
+              </Link>
+              <Link
                 href="/founder-pack"
                 className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
                   pathname === '/founder-pack' || pathname?.startsWith('/founder-pack')
