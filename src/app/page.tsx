@@ -229,17 +229,6 @@ export default function Home() {
                     </p>
                   </button>
                   <button
-                    onClick={() => router.push('/founder-pack-settings')}
-                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-orange-500 hover:bg-orange-50 dark:border-zinc-700 dark:hover:bg-orange-900/20"
-                  >
-                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                      Founder Pack Icon Settings
-                    </h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      Manage icon URLs for Founder Pack contents and rewards
-                    </p>
-                  </button>
-                  <button
                     onClick={() => router.push('/easter-egg')}
                     className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-purple-500 hover:bg-purple-50 dark:border-zinc-700 dark:hover:bg-purple-900/20"
                   >
@@ -259,17 +248,6 @@ export default function Home() {
                     </h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
                       Participate in community goals and claim rewards
-                    </p>
-                  </button>
-                  <button
-                    onClick={() => router.push('/founder-pack')}
-                    className="rounded-md border border-zinc-200 p-4 text-left transition-colors hover:border-purple-500 hover:bg-purple-50 dark:border-zinc-700 dark:hover:bg-purple-900/20"
-                  >
-                    <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                      Founder Pack
-                    </h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      Manage Founder Pack purchases and rewards
                     </p>
                   </button>
                   {/* {user?.role === 'super_admin' && (

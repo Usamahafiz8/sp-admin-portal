@@ -71,6 +71,7 @@ export default function CommunityGoalsManagementPage() {
   };
 
   const handleEditGoal = (goal: TapathonCommunityGoal) => {
+    console.log('Editing goal:', goal);
     setEditingGoal(goal);
     setShowCreateModal(true);
   };
@@ -148,7 +149,7 @@ export default function CommunityGoalsManagementPage() {
                   className={`rounded-lg border-2 p-6 ${
                     goal.is_completed
                       ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
-                      : goal.is_active
+                      : (goal.is_active === true || goal.is_active === 1)
                       ? 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20'
                       : 'border-zinc-300 bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700/50'
                   }`}
@@ -168,7 +169,7 @@ export default function CommunityGoalsManagementPage() {
                           Completed
                         </span>
                       )}
-                      {goal.is_active && !goal.is_completed && (
+                      {(goal.is_active === true || goal.is_active === 1) && !goal.is_completed && (
                         <span className="rounded-full bg-blue-200 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-800 dark:text-blue-200">
                           Active
                         </span>
@@ -209,6 +210,27 @@ export default function CommunityGoalsManagementPage() {
                         <span className="font-medium">{formatDate(goal.completed_at)}</span>
                       </div>
                     )}
+                    {(goal.reward_name || (goal as any)?.RewardName) && (
+                      <div className="mt-2 pt-2 border-t border-zinc-300 dark:border-zinc-600">
+                        <div className="flex items-center gap-2">
+                          {(goal.reward_icon_url || (goal as any)?.RewardIcon) && (
+                            <img
+                              src={goal.reward_icon_url || (goal as any)?.RewardIcon || ''}
+                              alt="Reward icon"
+                              className="h-8 w-8 rounded object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-medium text-zinc-900 dark:text-zinc-50">
+                              {goal.reward_name || (goal as any)?.RewardName}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
@@ -237,9 +259,11 @@ export default function CommunityGoalsManagementPage() {
         <CommunityGoalModal
           goal={editingGoal}
           onClose={handleCloseModal}
-          onSuccess={() => {
+          onSuccess={async () => {
             handleCloseModal();
-            fetchAllGoals();
+            // Small delay to ensure API has processed the update
+            await new Promise(resolve => setTimeout(resolve, 300));
+            await fetchAllGoals();
           }}
         />
       )}
@@ -258,18 +282,67 @@ function CommunityGoalModal({
   onSuccess: () => void;
 }) {
   const isEditing = !!goal;
+  // Handle is_active which might come as 1/0 (number) or boolean
+  const normalizeIsActive = (value: any): boolean => {
+    if (value === undefined || value === null) return true;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    return Boolean(value);
+  };
+
+  // Get reward name from either reward_name or RewardName field
+  const getRewardName = (goal: TapathonCommunityGoal | null): string => {
+    if (!goal) return '';
+    return (goal as any)?.reward_name || (goal as any)?.RewardName || '';
+  };
+
   const [formData, setFormData] = useState<CreateTapathonCommunityGoalDto & UpdateTapathonCommunityGoalDto>({
     tier_number: goal?.tier_number || 1,
     target_taps: goal?.target_taps || 1000000,
     tier_name: goal?.tier_name || '',
     is_completed: goal?.is_completed || false,
     current_taps: goal?.current_taps || 0,
-    is_active: goal?.is_active ?? true,
+    is_active: goal ? normalizeIsActive(goal.is_active) : true,
+    reward_name: getRewardName(goal),
   });
-  const [rewardIconUrl, setRewardIconUrl] = useState(goal?.reward_icon_url || '');
+  // Get reward icon from either reward_icon_url or RewardIcon field
+  const getRewardIcon = (goal: TapathonCommunityGoal | null): string => {
+    if (!goal) return '';
+    return goal.reward_icon_url || (goal as any)?.RewardIcon || '';
+  };
+
+  const [rewardIconUrl, setRewardIconUrl] = useState(getRewardIcon(goal));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRewardIconModal, setShowRewardIconModal] = useState(false);
+
+  // Update form data when goal changes
+  useEffect(() => {
+    if (goal) {
+      setFormData({
+        tier_number: goal.tier_number || 1,
+        target_taps: goal.target_taps || 1000000,
+        tier_name: goal.tier_name || '',
+        is_completed: goal.is_completed || false,
+        current_taps: goal.current_taps || 0,
+        is_active: normalizeIsActive(goal.is_active),
+        reward_name: getRewardName(goal),
+      });
+      setRewardIconUrl(getRewardIcon(goal));
+    } else {
+      // Reset form when creating new goal
+      setFormData({
+        tier_number: 1,
+        target_taps: 1000000,
+        tier_name: '',
+        is_completed: false,
+        current_taps: 0,
+        is_active: true,
+        reward_name: '',
+      });
+      setRewardIconUrl('');
+    }
+  }, [goal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,30 +351,42 @@ function CommunityGoalModal({
 
     try {
       if (isEditing && goal?.id) {
+        // Prepare update data - include all fields that can be updated
         const updateData: UpdateTapathonCommunityGoalDto = {
           tier_number: formData.tier_number,
           target_taps: formData.target_taps,
           tier_name: formData.tier_name,
-          is_completed: formData.is_completed,
-          current_taps: formData.current_taps,
-          is_active: formData.is_active,
+          is_completed: formData.is_completed !== undefined ? formData.is_completed : false,
+          current_taps: formData.current_taps !== undefined ? formData.current_taps : 0,
+          is_active: formData.is_active !== undefined ? formData.is_active : true,
+          // Handle reward_name: always send it (empty string becomes null to clear it)
+          reward_name: formData.reward_name?.trim() || null,
+          // Handle reward_icon_url: always send it (empty string becomes null to clear it)
+          reward_icon_url: rewardIconUrl?.trim() || null,
         };
-        await tapathonApi.updateCommunityGoal(goal.id, updateData);
+
+        console.log('Updating community goal:', goal.id, updateData);
         
-        // Update reward icon if changed
-        if (rewardIconUrl !== goal.reward_icon_url) {
-          await tapathonApi.updateCommunityGoalRewardIcon(goal.id, { icon_url: rewardIconUrl });
-        }
+        // Update all fields in a single API call
+        const updatedGoal = await tapathonApi.updateCommunityGoal(goal.id, updateData);
+        console.log('Goal updated successfully:', updatedGoal);
       } else {
-        await tapathonApi.createCommunityGoal({
+        // Create new goal
+        const createData = {
           tier_number: formData.tier_number,
           target_taps: formData.target_taps,
           tier_name: formData.tier_name,
-        });
+        };
+        console.log('Creating community goal:', createData);
+        await tapathonApi.createCommunityGoal(createData);
       }
+      
+      // Success - close modal and refresh
       onSuccess();
     } catch (err: any) {
-      setError(err.message || `Failed to ${isEditing ? 'update' : 'create'} community goal`);
+      console.error('Error saving community goal:', err);
+      const errorMessage = err.message || err.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} community goal`;
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -342,9 +427,13 @@ function CommunityGoalModal({
                 onChange={(e) => setFormData({ ...formData, tier_number: parseInt(e.target.value) || 1 })}
                 min={1}
                 required
-                disabled={isEditing}
-                className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50 disabled:opacity-50"
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
               />
+              {isEditing && (
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Warning: Changing tier number may affect other goals
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -385,30 +474,66 @@ function CommunityGoalModal({
                     min={0}
                     className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
                   />
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Current number of taps achieved for this tier
+                  </p>
                 </div>
-                <div className="flex items-center gap-4 pt-6">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_completed || false}
-                      onChange={(e) => setFormData({ ...formData, is_completed: e.target.checked })}
-                      className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                      Completed
-                    </span>
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Status
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_active ?? true}
-                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                      className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                      Active
-                    </span>
+                  <div className="flex flex-col gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_completed || false}
+                        onChange={(e) => setFormData({ ...formData, is_completed: e.target.checked })}
+                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Completed
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_active ?? true}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Active
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Reward Name
                   </label>
+                  <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={formData.reward_name || ''}
+                    onChange={(e) => setFormData({ ...formData, reward_name: e.target.value })}
+                      placeholder={'e.g., "100 Dino-Dough" or "Buddy Founder Badge" (Exclusive)'}
+                      maxLength={200}
+                      className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
+                  />
+                    {formData.reward_name && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, reward_name: '' })}
+                        className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 whitespace-nowrap"
+                        title="Clear reward name"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Name of the reward for this tier (optional). Leave empty to remove the reward name.
+                  </p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
@@ -420,26 +545,56 @@ function CommunityGoalModal({
                       value={rewardIconUrl}
                       onChange={(e) => setRewardIconUrl(e.target.value)}
                       placeholder="Enter icon URL or select from images"
+                      maxLength={500}
                       className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
                     />
                     <button
                       type="button"
                       onClick={() => setShowRewardIconModal(true)}
-                      className="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
+                      className="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 whitespace-nowrap"
                     >
                       Pick Image
                     </button>
+                    {rewardIconUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setRewardIconUrl('')}
+                        className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 whitespace-nowrap"
+                        title="Clear icon URL"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    URL for the reward icon image (optional). Leave empty to remove the icon.
+                  </p>
+                  {(rewardIconUrl || formData.reward_name) && (
+                    <div className="mt-3 rounded-lg border border-zinc-300 bg-zinc-50 p-3 dark:border-zinc-600 dark:bg-zinc-700/50">
+                      <p className="mb-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">Preview:</p>
+                      <div className="flex items-center gap-3">
                   {rewardIconUrl && (
-                    <div className="mt-2">
                       <img
                         src={rewardIconUrl}
-                        alt="Reward icon"
-                        className="h-16 w-16 rounded-lg object-cover"
+                            alt="Reward icon preview"
+                            className="h-12 w-12 rounded-lg object-cover border border-zinc-300 dark:border-zinc-600"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}
                       />
+                        )}
+                        <div className="flex-1">
+                          {formData.reward_name ? (
+                            <div className="font-medium text-zinc-900 dark:text-zinc-50">
+                              {formData.reward_name}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-zinc-500 dark:text-zinc-400 italic">
+                              No reward name set
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -3,41 +3,33 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import {
-  founderPackApi,
-  type FounderPackDetails,
-  type UserFounderStatus,
-  type CommunityGoalsStatus,
-  type FoundersListResponse,
-  type FoundersListQuery,
-  type IAPStatus,
-  type RewardsPrelaunch,
-  type RewardsGrant,
-  type Entitlement,
-  type Milestone,
-  type AvailableCommunityGoalReward,
-  type ClaimCommunityGoalRewardResponse,
-} from '../../lib/api';
+import { founderPackApi, type FounderPackSettings } from '../../lib/api';
 import { Navigation } from '../../components/Navigation';
+import { ImagePicker } from '../../components/ImagePicker';
 
 export default function FounderPackPage() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'admin' | 'user'>('user');
-  const [packDetails, setPackDetails] = useState<FounderPackDetails | null>(null);
-  const [userStatus, setUserStatus] = useState<UserFounderStatus | null>(null);
-  const [communityGoalsStatus, setCommunityGoalsStatus] = useState<CommunityGoalsStatus | null>(null);
-  const [foundersList, setFoundersList] = useState<FoundersListResponse | null>(null);
+  const [settings, setSettings] = useState<FounderPackSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [showImagePicker, setShowImagePicker] = useState<string | null>(null);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
 
-  // Admin filters
-  const [filters, setFilters] = useState<FoundersListQuery>({
-    page: 1,
-    limit: 50,
-    sort_by: 'purchase_date',
-    sort_order: 'desc',
-    platform: 'all',
+  const [formData, setFormData] = useState({
+    product_id: '',
+    price: 0,
+    currency: 'USD',
+    title: '',
+    description: '',
+    founder_outfit_icon_url: '',
+    dino_gems_icon_url: '',
+    founder_frame_icon_url: '',
+    tier_1_reward_icon_url: '',
+    tier_2_reward_icon_url: '',
+    tier_3_reward_icon_url: '',
   });
 
   useEffect(() => {
@@ -48,871 +40,482 @@ export default function FounderPackPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchData();
+      fetchSettings();
     }
-  }, [isAuthenticated, activeTab, filters]);
+  }, [isAuthenticated]);
 
-  const fetchData = async () => {
+  const fetchSettings = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      if (activeTab === 'user') {
-        // Fetch user-facing data
-        const [details, status, goalsStatus] = await Promise.all([
-          founderPackApi.getDetails().catch(() => null),
-          founderPackApi.getUserStatus().catch(() => null),
-          founderPackApi.getCommunityGoalsStatus().catch(() => null),
-        ]);
-
-        setPackDetails(details);
-        setUserStatus(status);
-        setCommunityGoalsStatus(goalsStatus);
-      } else {
-        // Fetch admin data
-        const list = await founderPackApi.getFoundersList(filters);
-        setFoundersList(list);
-      }
+      const data = await founderPackApi.getSettings();
+      setSettings(data);
+      setFormData({
+        product_id: data.product_id || '',
+        price: data.price || 0,
+        currency: data.currency || 'USD',
+        title: data.title || '',
+        description: data.description || '',
+        founder_outfit_icon_url: data.founder_outfit_icon_url || '',
+        dino_gems_icon_url: data.dino_gems_icon_url || '',
+        founder_frame_icon_url: data.founder_frame_icon_url || '',
+        tier_1_reward_icon_url: data.tier_1_reward_icon_url || '',
+        tier_2_reward_icon_url: data.tier_2_reward_icon_url || '',
+        tier_3_reward_icon_url: data.tier_3_reward_icon_url || '',
+      });
     } catch (err: any) {
-      console.error('Error fetching data:', err);
-      setError(err.message || 'Failed to fetch data');
+      setError(err.message || 'Failed to fetch settings');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount);
-  };
-
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'legendary':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
-      case 'epic':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
-      case 'rare':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'exclusive':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      default:
-        return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300';
+  const handleSaveAll = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+      await founderPackApi.updateSettings(formData);
+      setSuccess('All settings saved successfully!');
+      await fetchSettings();
+      setEditingSection(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getItemTypeIcon = (itemType: string) => {
-    switch (itemType) {
-      case 'outfit':
-        return '👕';
-      case 'currency':
-        return '💰';
-      case 'profile_frame':
-        return '🖼️';
-      case 'emote':
-        return '😀';
-      case 'accessory':
-        return '🎩';
-      default:
-        return '📦';
+  const handleSaveSection = async (section: string) => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+      
+      if (section === 'pack_info') {
+        await founderPackApi.updateSettings({
+          product_id: formData.product_id,
+          price: formData.price,
+          currency: formData.currency,
+          title: formData.title,
+          description: formData.description,
+        });
+      } else if (section === 'content_icons') {
+        await founderPackApi.updateSettings({
+          founder_outfit_icon_url: formData.founder_outfit_icon_url,
+          dino_gems_icon_url: formData.dino_gems_icon_url,
+          founder_frame_icon_url: formData.founder_frame_icon_url,
+        });
+      } else if (section === 'reward_icons') {
+        await founderPackApi.updateSettings({
+          tier_1_reward_icon_url: formData.tier_1_reward_icon_url,
+          tier_2_reward_icon_url: formData.tier_2_reward_icon_url,
+          tier_3_reward_icon_url: formData.tier_3_reward_icon_url,
+        });
+      }
+      
+      setSuccess(`${section} saved successfully!`);
+      await fetchSettings();
+      setEditingSection(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save');
+    } finally {
+      setSaving(false);
     }
   };
 
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg text-zinc-600 dark:text-zinc-400">Loading...</div>
+        <div className="text-lg">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation />
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Founder Pack</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Manage Founder Pack purchases, rewards, and community goals
-          </p>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Founder Pack Management</h1>
+          <p className="text-gray-600 dark:text-gray-400">Full CRUD operations for founder pack, community goals, and settings</p>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 border-b border-zinc-200 dark:border-zinc-700">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setActiveTab('user')}
-              className={`border-b-2 px-4 py-2 font-medium transition-colors ${
-                activeTab === 'user'
-                  ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                  : 'border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50'
-              }`}
-            >
-              User View
-            </button>
-            <button
-              onClick={() => setActiveTab('admin')}
-              className={`border-b-2 px-4 py-2 font-medium transition-colors ${
-                activeTab === 'admin'
-                  ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                  : 'border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50'
-              }`}
-            >
-              Admin Management
-            </button>
-          </div>
-        </div>
-
+        {/* Messages */}
         {error && (
-          <div className="mb-6 rounded-md bg-red-50 p-4 text-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-400">
             {error}
           </div>
         )}
-
-        {activeTab === 'admin' ? (
-          <AdminTab
-            foundersList={foundersList}
-            loading={loading}
-            filters={filters}
-            setFilters={setFilters}
-            onRefresh={fetchData}
-            formatDate={formatDate}
-            formatCurrency={formatCurrency}
-          />
-        ) : (
-          <UserTab
-            packDetails={packDetails}
-            userStatus={userStatus}
-            communityGoalsStatus={communityGoalsStatus}
-            loading={loading}
-            onRefresh={fetchData}
-            getRarityColor={getRarityColor}
-            getItemTypeIcon={getItemTypeIcon}
-            formatDate={formatDate}
-          />
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-800 dark:text-green-400">
+            {success}
+          </div>
         )}
-      </div>
-    </div>
-  );
-}
 
-// User Tab Component
-function UserTab({
-  packDetails,
-  userStatus,
-  communityGoalsStatus,
-  loading,
-  onRefresh,
-  getRarityColor,
-  getItemTypeIcon,
-  formatDate,
-}: {
-  packDetails: FounderPackDetails | null;
-  userStatus: UserFounderStatus | null;
-  communityGoalsStatus: CommunityGoalsStatus | null;
-  loading: boolean;
-  onRefresh: () => void;
-  getRarityColor: (rarity: string) => string;
-  getItemTypeIcon: (itemType: string) => string;
-  formatDate: (date: string) => string;
-}) {
-  const { user, isAuthenticated } = useAuth();
-  const [grantingRewards, setGrantingRewards] = useState(false);
-  const [grantSuccess, setGrantSuccess] = useState<string | null>(null);
-  const [availableRewards, setAvailableRewards] = useState<AvailableCommunityGoalReward[]>([]);
-  const [loadingRewards, setLoadingRewards] = useState(false);
-  const [claimingReward, setClaimingReward] = useState<string | null>(null);
-  const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
+        {/* Quick Actions */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          <button
+            onClick={() => router.push('/founder-pack/community-goals')}
+            className="bg-white dark:bg-gray-800 rounded-lg border-2 border-blue-500 p-6 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+          >
+            <div className="text-3xl mb-2">🎯</div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Community Goals</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Create, Edit, Delete Goals</p>
+          </button>
 
-  const handleGrantRewards = async () => {
-    if (!user?.id) return;
-    try {
-      setGrantingRewards(true);
-      setGrantSuccess(null);
-      const result = await founderPackApi.grantRewards(user.id);
-      setGrantSuccess(`Successfully granted ${result.total_granted} rewards!`);
-      await onRefresh();
-    } catch (err: any) {
-      console.error('Error granting rewards:', err);
-      alert(err.message || 'Failed to grant rewards');
-    } finally {
-      setGrantingRewards(false);
-    }
-  };
+          <button
+            onClick={() => router.push('/founder-pack/founders')}
+            className="bg-white dark:bg-gray-800 rounded-lg border-2 border-green-500 p-6 text-left hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+          >
+            <div className="text-3xl mb-2">👥</div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Founders List</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">View All Purchases</p>
+          </button>
 
-  const fetchAvailableRewards = async () => {
-    try {
-      setLoadingRewards(true);
-      const rewards = await founderPackApi.getAvailableCommunityGoalRewards();
-      setAvailableRewards(rewards);
-    } catch (err: any) {
-      console.error('Error fetching available rewards:', err);
-    } finally {
-      setLoadingRewards(false);
-    }
-  };
+          <button
+            onClick={() => router.push('/founder-pack/users')}
+            className="bg-white dark:bg-gray-800 rounded-lg border-2 border-purple-500 p-6 text-left hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+          >
+            <div className="text-3xl mb-2">👤</div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">User Management</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">View Status & IAP</p>
+          </button>
 
-  const handleClaimReward = async (goalId: string) => {
-    try {
-      setClaimingReward(goalId);
-      setClaimSuccess(null);
-      const result = await founderPackApi.claimCommunityGoalReward(goalId);
-      setClaimSuccess(`Successfully claimed ${result.reward.reward.item_name}!`);
-      await fetchAvailableRewards();
-      await onRefresh();
-    } catch (err: any) {
-      console.error('Error claiming reward:', err);
-      alert(err.message || 'Failed to claim reward');
-    } finally {
-      setClaimingReward(null);
-    }
-  };
+          <button
+            onClick={() => router.push('/founder-pack/rewards')}
+            className="bg-white dark:bg-gray-800 rounded-lg border-2 border-yellow-500 p-6 text-left hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors"
+          >
+            <div className="text-3xl mb-2">🎁</div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Rewards</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Manage Rewards</p>
+          </button>
 
-  useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      fetchAvailableRewards();
-    }
-  }, [isAuthenticated, user?.id]);
+          <button
+            onClick={() => setEditingSection(editingSection === 'pack_info' ? null : 'pack_info')}
+            className="bg-white dark:bg-gray-800 rounded-lg border-2 border-purple-500 p-6 text-left hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+          >
+            <div className="text-3xl mb-2">📦</div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Pack Info</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Edit Pack Details</p>
+          </button>
 
-  return (
-    <div className="space-y-6">
-      {/* Pack Details */}
-      {packDetails && (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
-          <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-            Founder Pack Details
-          </h2>
-          <div className="mb-4">
-            <h3 className="mb-2 font-bold text-zinc-900 dark:text-zinc-50">
-              {packDetails.pack_info.title}
-            </h3>
-            <p className="mb-2 text-zinc-600 dark:text-zinc-400">
-              {packDetails.pack_info.description}
-            </p>
-            <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              {packDetails.pack_info.localized_price}
-            </div>
-          </div>
-
-          {/* Pack Contents */}
-          <div className="mb-4">
-            <h4 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">Pack Contents:</h4>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {packDetails.contents.map((item, index) => (
-                <div
-                  key={index}
-                  className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-700"
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="text-xl">{getItemTypeIcon(item.item_type)}</span>
-                    <div className="flex-1">
-                      <div className="font-semibold text-zinc-900 dark:text-zinc-50">
-                        {item.item_name}
-                      </div>
-                      <div className="text-xs text-zinc-600 dark:text-zinc-400 capitalize">
-                        {item.item_type}
-                      </div>
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium ${getRarityColor(
-                        item.rarity
-                      )}`}
-                    >
-                      {item.rarity}
-                    </span>
-                  </div>
-                  {item.quantity && (
-                    <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                      Quantity: {item.quantity}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* User Status */}
-          <div className="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold text-zinc-900 dark:text-zinc-50">
-                  Status: {packDetails.user_status.is_founder ? '✓ Founder' : 'Not a Founder'}
-                </div>
-                {packDetails.user_status.purchase_date && (
-                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Purchased: {formatDate(packDetails.user_status.purchase_date)}
-                  </div>
-                )}
-              </div>
-              {packDetails.user_status.is_founder && (
-                <button
-                  onClick={handleGrantRewards}
-                  disabled={grantingRewards}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-zinc-400"
-                >
-                  {grantingRewards ? 'Granting...' : 'Grant Rewards'}
-                </button>
-              )}
-            </div>
-            {grantSuccess && (
-              <div className="mt-2 text-sm text-green-600 dark:text-green-400">{grantSuccess}</div>
-            )}
-          </div>
+          <button
+            onClick={() => setEditingSection(editingSection === 'icons' ? null : 'icons')}
+            className="bg-white dark:bg-gray-800 rounded-lg border-2 border-orange-500 p-6 text-left hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+          >
+            <div className="text-3xl mb-2">🖼️</div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Icons</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Manage Icons</p>
+          </button>
         </div>
-      )}
 
-      {/* User Status & Entitlements */}
-      {userStatus && (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
-          <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-            My Founder Status
-          </h2>
-          {userStatus.purchase_info && (
-            <div className="mb-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-              <div className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                Purchase Information
+        {/* Pack Information Section */}
+        {editingSection === 'pack_info' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Pack Information</h2>
+              <button
+                onClick={() => setEditingSection(null)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Product ID *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.product_id}
+                    onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
+                    placeholder="e.g., stevenandparkerfounderpack"
+                    maxLength={200}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Price *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    placeholder="14.99"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Currency *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.currency}
+                    onChange={(e) => setFormData({ ...formData, currency: e.target.value.toUpperCase() })}
+                    placeholder="USD"
+                    maxLength={10}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
               </div>
-              <div className="space-y-1 text-sm">
-                <div>
-                  <span className="text-zinc-600 dark:text-zinc-400">Platform:</span>{' '}
-                  <span className="font-medium capitalize">{userStatus.purchase_info.platform}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-600 dark:text-zinc-400">Purchase Date:</span>{' '}
-                  <span className="font-medium">
-                    {formatDate(userStatus.purchase_info.purchase_date)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-zinc-600 dark:text-zinc-400">Transaction ID:</span>{' '}
-                  <span className="font-medium">{userStatus.purchase_info.transaction_id}</span>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g., Become a StEvEn & Parker Founder!"
+                  maxLength={200}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description *
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="e.g., Get exclusive items that will never be available again!"
+                  rows={3}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleSaveSection('pack_info')}
+                  disabled={saving}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+                >
+                  {saving ? 'Saving...' : 'Save Pack Info'}
+                </button>
+                <button
+                  onClick={() => setEditingSection(null)}
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Entitlements */}
-          {userStatus.entitlements && userStatus.entitlements.length > 0 && (
-            <div className="mb-4">
-              <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                My Entitlements ({userStatus.entitlements.length})
-              </h3>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {userStatus.entitlements.map((entitlement, index) => (
-                  <div
-                    key={index}
-                    className={`rounded-lg border-2 p-3 ${
-                      entitlement.granted
-                        ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
-                        : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-700'
-                    }`}
-                  >
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="text-xl">{getItemTypeIcon(entitlement.item_type)}</span>
-                      <div className="flex-1">
-                        <div className="font-semibold text-zinc-900 dark:text-zinc-50">
-                          {entitlement.item_name}
-                        </div>
-                        <div className="text-xs text-zinc-600 dark:text-zinc-400 capitalize">
-                          {entitlement.item_type} • {entitlement.source}
-                        </div>
+        {/* Icons Section */}
+        {editingSection === 'icons' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Icon Management</h2>
+              <button
+                onClick={() => setEditingSection(null)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Content Icons */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Content Icons</h3>
+              <div className="space-y-4">
+                {[
+                  { id: 'founder_outfit', label: 'Founder Outfit Icon', key: 'founder_outfit_icon_url' },
+                  { id: 'dino_gems', label: 'Dino Gems Icon', key: 'dino_gems_icon_url' },
+                  { id: 'founder_frame', label: 'Founder Frame Icon', key: 'founder_frame_icon_url' },
+                ].map((item) => (
+                  <div key={item.id} className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {item.label}
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={formData[item.key as keyof typeof formData]}
+                          onChange={(e) => setFormData({ ...formData, [item.key]: e.target.value })}
+                          placeholder="Enter icon URL or pick from images"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowImagePicker(item.id)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          Pick Image
+                        </button>
                       </div>
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${getRarityColor(
-                          entitlement.rarity
-                        )}`}
-                      >
-                        {entitlement.rarity}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-600 dark:text-zinc-400">
-                        Qty: {entitlement.quantity}
-                      </span>
-                      {entitlement.granted ? (
-                        <span className="text-green-600 dark:text-green-400">✓ Granted</span>
-                      ) : (
-                        <span className="text-yellow-600 dark:text-yellow-400">Pending</span>
+                      {formData[item.key as keyof typeof formData] && (
+                        <div className="mt-2">
+                          <img
+                            src={formData[item.key as keyof typeof formData]}
+                            alt={item.label}
+                            className="w-16 h-16 rounded object-cover border border-gray-300 dark:border-gray-600"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Community Goals Eligible */}
-          {userStatus.community_goals_eligible &&
-            userStatus.community_goals_eligible.length > 0 && (
-              <div>
-                <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-                  Community Goals Eligible
-                </h3>
-                <div className="space-y-2">
-                  {userStatus.community_goals_eligible.map((goal, index) => (
-                    <div
-                      key={index}
-                      className={`rounded-lg border p-3 ${
-                        goal.is_achieved
-                          ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
-                          : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-semibold text-zinc-900 dark:text-zinc-50">
-                            Tier {goal.goal_tier}: {goal.goal_name}
-                          </div>
-                          {goal.current_progress && (
-                            <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                              Progress: {goal.current_progress}
-                            </div>
-                          )}
+            {/* Reward Icons */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Community Goal Reward Icons</h3>
+              <div className="space-y-4">
+                {[1, 2, 3].map((tier) => {
+                  const key = `tier_${tier}_reward_icon_url` as keyof typeof formData;
+                  return (
+                    <div key={tier} className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Tier {tier} Reward Icon
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={formData[key]}
+                            onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                            placeholder="Enter icon URL or pick from images"
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowImagePicker(`tier_${tier}`)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Pick Image
+                          </button>
                         </div>
-                        {goal.is_achieved ? (
-                          <span className="rounded-full bg-green-200 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-800 dark:text-green-200">
-                            ✓ Achieved
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-yellow-200 px-2 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200">
-                            In Progress
-                          </span>
+                        {formData[key] && (
+                          <div className="mt-2">
+                            <img
+                              src={formData[key]}
+                              alt={`Tier ${tier} Reward`}
+                              className="w-16 h-16 rounded object-cover border border-gray-300 dark:border-gray-600"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
-        </div>
-      )}
-
-      {/* Community Goals Status */}
-      {communityGoalsStatus && (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
-          <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-            Community Goals Progress
-          </h2>
-          <div className="mb-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              {communityGoalsStatus.total_packs_sold.toLocaleString()} Packs Sold
             </div>
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">
-              {communityGoalsStatus.unlocked_count} of {communityGoalsStatus.total_milestones}{' '}
-              milestones unlocked
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleSaveSection('content_icons')}
+                disabled={saving}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+              >
+                {saving ? 'Saving...' : 'Save Content Icons'}
+              </button>
+              <button
+                onClick={() => handleSaveSection('reward_icons')}
+                disabled={saving}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+              >
+                {saving ? 'Saving...' : 'Save Reward Icons'}
+              </button>
+              <button
+                onClick={() => setEditingSection(null)}
+                className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
+              >
+                Cancel
+              </button>
             </div>
-          </div>
-
-          <div className="space-y-3">
-            {communityGoalsStatus.milestones.map((milestone, index) => (
-              <div
-                key={index}
-                className={`rounded-lg border-2 p-4 ${
-                  milestone.status === 'UNLOCKED'
-                    ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
-                    : milestone.status === 'IN_PROGRESS'
-                    ? 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20'
-                    : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-700'
-                }`}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-zinc-900 dark:text-zinc-50">
-                      Tier {milestone.tier}: {milestone.reward}
-                    </div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                      Target: {milestone.target.toLocaleString()} packs
-                    </div>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      milestone.status === 'UNLOCKED'
-                        ? 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200'
-                        : milestone.status === 'IN_PROGRESS'
-                        ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200'
-                        : 'bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300'
-                    }`}
-                  >
-                    {milestone.status}
-                  </span>
-                </div>
-                {milestone.status === 'IN_PROGRESS' && (
-                  <div>
-                    <div className="mb-1 flex justify-between text-xs">
-                      <span className="text-zinc-600 dark:text-zinc-400">Progress</span>
-                      <span className="font-semibold">{milestone.progress_percentage.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
-                      <div
-                        className="h-full bg-blue-600 transition-all dark:bg-blue-400"
-                        style={{ width: `${Math.min(milestone.progress_percentage, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {milestone.achieved_date && (
-                  <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
-                    Achieved: {formatDate(milestone.achieved_date)}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Available Community Goal Rewards */}
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
-        <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          Available Community Goal Rewards
-        </h2>
-        {loadingRewards ? (
-          <div className="text-center text-zinc-600 dark:text-zinc-400">Loading rewards...</div>
-        ) : availableRewards.length > 0 ? (
-          <div className="space-y-3">
-            {availableRewards.map((reward) => (
-              <div
-                key={reward.goal_id}
-                className={`rounded-lg border-2 p-4 ${
-                  reward.is_claimed
-                    ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
-                    : 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="text-xl">{getItemTypeIcon(reward.reward.item_type)}</span>
-                      <div>
-                        <div className="font-semibold text-zinc-900 dark:text-zinc-50">
-                          Tier {reward.goal_tier}: {reward.goal_name}
-                        </div>
-                        <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                          Reward: {reward.reward.item_name}
-                        </div>
-                        <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                          Achieved: {formatDate(reward.achieved_date)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${getRarityColor(
-                          reward.reward.rarity
-                        )}`}
-                      >
-                        {reward.reward.rarity}
-                      </span>
-                      <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                        Qty: {reward.reward.quantity}
-                      </span>
-                    </div>
-                    {reward.is_claimed && reward.claimed_date && (
-                      <div className="mt-2 text-xs text-green-600 dark:text-green-400">
-                        ✓ Claimed on {formatDate(reward.claimed_date)}
-                      </div>
-                    )}
-                  </div>
-                  {!reward.is_claimed ? (
-                    <button
-                      onClick={() => handleClaimReward(reward.goal_id)}
-                      disabled={claimingReward === reward.goal_id}
-                      className="ml-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-zinc-400"
-                    >
-                      {claimingReward === reward.goal_id ? 'Claiming...' : 'Claim Reward'}
-                    </button>
-                  ) : (
-                    <div className="ml-4 rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white">
-                      ✓ Claimed
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center text-zinc-600 dark:text-zinc-400">
-            {userStatus?.is_founder
-              ? 'No available rewards to claim at this time.'
-              : 'You must be a founder to claim community goal rewards.'}
           </div>
         )}
-        {claimSuccess && (
-          <div className="mt-4 rounded-md bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-400">
-            {claimSuccess}
+
+        {/* Current Settings Display */}
+        {!editingSection && settings && (
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Pack Info Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pack Information</h3>
+              <div className="space-y-2 text-sm">
+                <div><span className="font-medium">Product ID:</span> {settings.product_id || 'Not set'}</div>
+                <div><span className="font-medium">Price:</span> {settings.price ? `${settings.currency || 'USD'} ${settings.price}` : 'Not set'}</div>
+                <div><span className="font-medium">Title:</span> {settings.title || 'Not set'}</div>
+                <div><span className="font-medium">Description:</span> {settings.description || 'Not set'}</div>
+              </div>
+            </div>
+
+            {/* Icons Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Icons</h3>
+              <div className="space-y-2 text-sm">
+                <div><span className="font-medium">Content Icons:</span> {settings.founder_outfit_icon_url ? 'Set' : 'Not set'}</div>
+                <div><span className="font-medium">Reward Icons:</span> {settings.tier_1_reward_icon_url ? 'Set' : 'Not set'}</div>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {loading && (
-        <div className="text-center text-zinc-600 dark:text-zinc-400">Loading...</div>
+      {/* Image Picker Modal */}
+      {showImagePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
+          <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Select Icon</h3>
+              <button
+                onClick={() => setShowImagePicker(null)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <ImagePicker
+                value={
+                  showImagePicker.startsWith('tier_')
+                    ? formData[`tier_${showImagePicker.split('_')[1]}_reward_icon_url` as keyof typeof formData]
+                    : formData[`${showImagePicker}_icon_url` as keyof typeof formData] || ''
+                }
+                onChange={(url) => {
+                  if (showImagePicker.startsWith('tier_')) {
+                    const tier = showImagePicker.split('_')[1];
+                    setFormData({ ...formData, [`tier_${tier}_reward_icon_url`]: url });
+                  } else {
+                    setFormData({ ...formData, [`${showImagePicker}_icon_url`]: url });
+                  }
+                  setShowImagePicker(null);
+                }}
+                label="Select Icon"
+                placeholder="Choose an image"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 }
-
-// Admin Tab Component
-function AdminTab({
-  foundersList,
-  loading,
-  filters,
-  setFilters,
-  onRefresh,
-  formatDate,
-  formatCurrency,
-}: {
-  foundersList: FoundersListResponse | null;
-  loading: boolean;
-  filters: FoundersListQuery;
-  setFilters: (filters: FoundersListQuery) => void;
-  onRefresh: () => void;
-  formatDate: (date: string) => string;
-  formatCurrency: (amount: number, currency?: string) => string;
-}) {
-  return (
-    <div className="space-y-6">
-      {/* Summary Stats */}
-      {foundersList?.summary && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg bg-blue-100 p-4 dark:bg-blue-900/20">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">Total Founders</div>
-            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              {foundersList.summary.total_founders}
-            </div>
-          </div>
-          <div className="rounded-lg bg-green-100 p-4 dark:bg-green-900/20">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">Total Revenue</div>
-            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              {formatCurrency(foundersList.summary.total_revenue)}
-            </div>
-          </div>
-          <div className="rounded-lg bg-purple-100 p-4 dark:bg-purple-900/20">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">iOS Purchases</div>
-            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              {foundersList.summary.platform_breakdown.ios}
-            </div>
-          </div>
-          <div className="rounded-lg bg-orange-100 p-4 dark:bg-orange-900/20">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">Android Purchases</div>
-            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              {foundersList.summary.platform_breakdown.android}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
-        <div className="mb-4 font-semibold text-zinc-900 dark:text-zinc-50">Filters</div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div>
-            <label className="mb-1 block text-sm text-zinc-700 dark:text-zinc-300">Search</label>
-            <input
-              type="text"
-              value={filters.search || ''}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })}
-              placeholder="Search by username..."
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm text-zinc-700 dark:text-zinc-300">Platform</label>
-            <select
-              value={filters.platform || 'all'}
-              onChange={(e) =>
-                setFilters({ ...filters, platform: e.target.value as any, page: 1 })
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-            >
-              <option value="all">All Platforms</option>
-              <option value="ios">iOS</option>
-              <option value="android">Android</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm text-zinc-700 dark:text-zinc-300">Sort By</label>
-            <select
-              value={filters.sort_by || 'purchase_date'}
-              onChange={(e) =>
-                setFilters({ ...filters, sort_by: e.target.value as any, page: 1 })
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-            >
-              <option value="purchase_date">Purchase Date</option>
-              <option value="user_id">User ID</option>
-              <option value="price">Price</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm text-zinc-700 dark:text-zinc-300">Order</label>
-            <select
-              value={filters.sort_order || 'desc'}
-              onChange={(e) =>
-                setFilters({ ...filters, sort_order: e.target.value as any, page: 1 })
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-            >
-              <option value="desc">Descending</option>
-              <option value="asc">Ascending</option>
-            </select>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm text-zinc-700 dark:text-zinc-300">Date From</label>
-            <input
-              type="date"
-              value={filters.date_from ? filters.date_from.split('T')[0] : ''}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  date_from: e.target.value ? new Date(e.target.value).toISOString() : undefined,
-                  page: 1,
-                })
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm text-zinc-700 dark:text-zinc-300">Date To</label>
-            <input
-              type="date"
-              value={filters.date_to ? filters.date_to.split('T')[0] : ''}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  date_to: e.target.value ? new Date(e.target.value).toISOString() : undefined,
-                  page: 1,
-                })
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Founders List */}
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
-        <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          Founders List
-        </h2>
-        {loading ? (
-          <div className="text-center text-zinc-600 dark:text-zinc-400">Loading...</div>
-        ) : foundersList && foundersList.founders.length > 0 ? (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                      Username
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                      Purchase Date
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                      Platform
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                      Price
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                      Transaction ID
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {foundersList.founders.map((founder, index) => (
-                    <tr
-                      key={index}
-                      className="border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
-                    >
-                      <td className="px-4 py-2 text-sm text-zinc-900 dark:text-zinc-50">
-                        {founder.username || founder.user_id}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        {formatDate(founder.purchase_date)}
-                      </td>
-                      <td className="px-4 py-2 text-sm capitalize text-zinc-600 dark:text-zinc-400">
-                        {founder.platform}
-                      </td>
-                      <td className="px-4 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                        {formatCurrency(founder.price_paid, founder.currency)}
-                      </td>
-                      <td className="px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400">
-                        {founder.transaction_id}
-                      </td>
-                      <td className="px-4 py-2 text-sm">
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${
-                            founder.purchase_status === 'completed'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200'
-                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200'
-                          }`}
-                        >
-                          {founder.purchase_status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {foundersList.pagination && (
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Showing {foundersList.founders.length} of {foundersList.pagination.total_founders}{' '}
-                  founders
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      setFilters({ ...filters, page: (filters.page || 1) - 1 })
-                    }
-                    disabled={!foundersList.pagination.has_prev}
-                    className="rounded-md border border-zinc-300 px-3 py-1 text-sm text-zinc-700 transition-colors hover:bg-zinc-50 disabled:bg-zinc-100 disabled:text-zinc-400 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:disabled:bg-zinc-700"
-                  >
-                    Previous
-                  </button>
-                  <div className="px-3 py-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    Page {foundersList.pagination.current_page} of{' '}
-                    {foundersList.pagination.total_pages}
-                  </div>
-                  <button
-                    onClick={() =>
-                      setFilters({ ...filters, page: (filters.page || 1) + 1 })
-                    }
-                    disabled={!foundersList.pagination.has_next}
-                    className="rounded-md border border-zinc-300 px-3 py-1 text-sm text-zinc-700 transition-colors hover:bg-zinc-50 disabled:bg-zinc-100 disabled:text-zinc-400 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:disabled:bg-zinc-700"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center text-zinc-600 dark:text-zinc-400">No founders found</div>
-        )}
-      </div>
-    </div>
-  );
-}
-

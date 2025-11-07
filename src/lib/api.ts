@@ -75,8 +75,20 @@ async function apiRequest<T>(
   });
 
   if (!response.ok && response.status !== 201) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    let errorMessage = `HTTP ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorData.error?.message || errorData.error || errorMessage;
+    } catch {
+      // If JSON parsing fails, try to get text
+      try {
+        const text = await response.text();
+        if (text) errorMessage = text.substring(0, 200);
+      } catch {
+        // Ignore
+      }
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -1010,127 +1022,75 @@ export type {
 };
 
 // ============================================================================
-// Founder Pack Types and API
+// Founder Pack API
 // ============================================================================
 
-interface PackItem {
-  item_id: string;
-  item_name: string;
-  item_type: 'outfit' | 'currency' | 'profile_frame' | 'emote' | 'accessory';
-  rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
-  quantity?: number;
-  icon_url: string;
-}
-
-interface PackInfo {
-  product_id: string;
-  price: number;
-  currency: string;
-  localized_price: string;
-  title: string;
-  description: string;
-}
-
-interface UserStatus {
-  has_purchased: boolean;
-  purchase_date?: string;
-  is_founder: boolean;
-}
-
-interface CommunityGoalRewardFP {
-  item_id: string;
-  item_name: string;
-  item_type: 'emote' | 'currency' | 'accessory';
-  rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
-  quantity?: number;
-}
-
-interface CommunityGoalFP {
-  tier: number;
-  name: string;
-  target_sales: number;
-  current_sales: number;
-  is_achieved: boolean;
-  achieved_date?: string;
-  reward: CommunityGoalRewardFP;
-}
-
-interface AchievedGoal {
-  tier: number;
-  name: string;
-  achieved_date: string;
-}
-
-interface CommunityGoalsFP {
-  total_founders: number;
-  current_goal: CommunityGoalFP;
-  next_goal: CommunityGoalFP;
-  achieved_goals: AchievedGoal[];
-}
-
-interface FounderPackDetails {
-  pack_info: PackInfo;
-  contents: PackItem[];
-  user_status: UserStatus;
-  community_goals: CommunityGoalsFP;
-}
-
-interface PurchaseInfo {
-  purchase_id: string;
-  purchase_date: string;
-  platform: 'ios' | 'android';
-  transaction_id: string;
-  price_paid: number;
-  currency: string;
-}
-
-interface Entitlement {
-  entitlement_id: string;
-  item_id: string;
-  item_name: string;
-  item_type: 'outfit' | 'currency' | 'profile_frame' | 'emote' | 'accessory';
-  rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'exclusive';
-  quantity: number;
-  granted: boolean;
-  grant_date: string;
-  source: 'founder_pack_base' | 'community_goal_tier_1' | 'community_goal_tier_2' | 'community_goal_tier_3';
-}
-
-interface CommunityGoalEligibility {
-  goal_tier: number;
+// Founder Pack Community Goal Types
+export interface FounderPackCommunityGoal {
+  id: string;
   goal_name: string;
+  goal_tier: number;
+  target_sales_count: number;
+  current_sales_count: number;
+  reward_item_id: string;
+  reward_item_type: 'emote' | 'currency' | 'accessory';
+  reward_item_name: string;
+  reward_quantity: number;
+  is_active: boolean;
   is_achieved: boolean;
-  achieved_date?: string;
-  current_progress?: string;
-  user_contributed: boolean;
+  achieved_date?: string | null;
+  reward_icon_url?: string | null;
+  reward_name?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
-interface UserFounderStatus {
-  user_id: string;
-  is_founder: boolean;
-  purchase_info?: PurchaseInfo;
-  entitlements: Entitlement[];
-  community_goals_eligible: CommunityGoalEligibility[];
+export interface CreateFounderPackCommunityGoalDto {
+  goal_name: string;
+  goal_tier: number;
+  target_sales_count: number;
+  reward_item_id: string;
+  reward_item_type: 'emote' | 'currency' | 'accessory';
+  reward_item_name: string;
+  reward_quantity?: number;
+  is_active?: boolean;
+  reward_icon_url?: string | null;
+  reward_name?: string | null;
 }
 
-interface Milestone {
-  tier: number;
-  target: number;
-  reward: string;
-  status: 'UNLOCKED' | 'IN_PROGRESS' | 'LOCKED';
-  achieved_date?: string;
-  progress_percentage: number;
+export interface UpdateFounderPackCommunityGoalDto {
+  goal_name?: string;
+  goal_tier?: number;
+  target_sales_count?: number;
+  current_sales_count?: number;
+  reward_item_id?: string;
+  reward_item_type?: 'emote' | 'currency' | 'accessory';
+  reward_item_name?: string;
+  reward_quantity?: number;
+  is_active?: boolean;
+  is_achieved?: boolean;
+  reward_icon_url?: string | null;
+  reward_name?: string | null;
 }
 
-interface CommunityGoalsStatus {
-  total_packs_sold: number;
-  milestones: Milestone[];
-  current_tier: number;
-  unlocked_count: number;
-  total_milestones: number;
+export interface FounderPackSettings {
+  id: string;
+  founder_outfit_icon_url?: string | null;
+  dino_gems_icon_url?: string | null;
+  founder_frame_icon_url?: string | null;
+  tier_1_reward_icon_url?: string | null;
+  tier_2_reward_icon_url?: string | null;
+  tier_3_reward_icon_url?: string | null;
+  product_id?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  title?: string | null;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
-interface Founder {
+export interface Founder {
   user_id: string;
   username: string;
   purchase_id: string;
@@ -1142,7 +1102,7 @@ interface Founder {
   purchase_status: string;
 }
 
-interface FoundersListResponse {
+export interface FoundersListResponse {
   founders: Founder[];
   pagination: {
     current_page: number;
@@ -1163,7 +1123,7 @@ interface FoundersListResponse {
   };
 }
 
-interface FoundersListQuery {
+export interface FoundersListQuery {
   page?: number;
   limit?: number;
   sort_by?: 'purchase_date' | 'user_id' | 'price';
@@ -1174,108 +1134,122 @@ interface FoundersListQuery {
   search?: string;
 }
 
-interface IAPStatus {
-  has_purchased: boolean;
-  purchase_status?: string;
-  purchase_date?: string;
-  transaction_id?: string;
-}
-
-interface RewardsPrelaunch {
-  user_id: string;
-  founder_pack_rewards: Entitlement[];
-  community_goal_rewards: Entitlement[];
-  total_rewards: number;
-}
-
-interface AvailableCommunityGoalReward {
-  goal_id: string;
-  goal_tier: number;
-  goal_name: string;
-  achieved_date: string;
-  reward: {
-    item_id: string;
-    item_name: string;
-    item_type: string;
-    quantity: number;
-    rarity: string;
-  };
-  is_claimed: boolean;
-  claimed_date: string | null;
-  entitlement_id: string | null;
-}
-
-interface ClaimCommunityGoalRewardResponse {
-  success: boolean;
-  reward: {
-    entitlement_id: string;
-    goal_id: string;
-    goal_tier: number;
-    goal_name: string;
-    reward: {
-      item_id: string;
-      item_name: string;
-      item_type: string;
-      quantity: number;
-      rarity: string;
-    };
-    claimed_date: string;
-  };
-}
-
-interface RewardsGrant {
-  user_id: string;
-  success: boolean;
-  total_granted: number;
-  granted_rewards: Array<{
-    item_id: string;
-    item_name: string;
-    item_type: string;
-    quantity: number;
-    source: string;
-    granted_date: string;
-  }>;
-  founder_pack_rewards_count: number;
-  community_goal_rewards_count: number;
-  grant_date: string;
-}
-
 // Founder Pack API
 export const founderPackApi = {
-  // Public endpoints
-  getDetails: async (): Promise<FounderPackDetails> => {
-    const response = await apiRequest<FounderPackDetails>('/founder-pack/details');
+  // Community Goals CRUD
+  getAllCommunityGoals: async (): Promise<FounderPackCommunityGoal[]> => {
+    try {
+      const response = await apiRequest<{ success: boolean; data: FounderPackCommunityGoal[] } | FounderPackCommunityGoal[]>(
+        '/founder-pack/community-goals/admin'
+      );
+      
+      // Handle different response structures
+      if (Array.isArray(response)) {
+        return response;
+      }
+      
+      if (response && typeof response === 'object' && 'success' in response) {
+        const typedResponse = response as { success: boolean; data: FounderPackCommunityGoal[] };
+        if (typedResponse.success && typedResponse.data) {
+          return Array.isArray(typedResponse.data) ? typedResponse.data : [];
+        }
+        if (typedResponse.data && Array.isArray(typedResponse.data)) {
+          return typedResponse.data;
+        }
+      }
+      
+      if (response && typeof response === 'object' && 'data' in response) {
+        const data = (response as any).data;
+        if (Array.isArray(data)) {
+          return data;
+        }
+      }
+      
+      return [];
+    } catch (error: any) {
+      console.error('Error fetching community goals:', error);
+      throw error;
+    }
+  },
+
+  getCommunityGoalById: async (id: string): Promise<FounderPackCommunityGoal> => {
+    const response = await apiRequest<{ success: boolean; data: FounderPackCommunityGoal }>(
+      `/founder-pack/community-goals/admin/${id}`
+    );
+    return response.data?.data || response.data || response;
+  },
+
+  createCommunityGoal: async (data: CreateFounderPackCommunityGoalDto): Promise<FounderPackCommunityGoal> => {
+    try {
+      const response = await apiRequest<{ success: boolean; data: FounderPackCommunityGoal } | FounderPackCommunityGoal>(
+        '/founder-pack/community-goals/admin',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }
+      );
+      
+      if (Array.isArray(response)) {
+        throw new Error('Unexpected array response');
+      }
+      
+      if (response && typeof response === 'object' && 'success' in response) {
+        const typedResponse = response as { success: boolean; data: FounderPackCommunityGoal };
+        return typedResponse.data || typedResponse as any;
+      }
+      
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as any).data;
+      }
+      
+      return response as FounderPackCommunityGoal;
+    } catch (error: any) {
+      console.error('Error creating community goal:', error);
+      throw error;
+    }
+  },
+
+  updateCommunityGoal: async (id: string, data: UpdateFounderPackCommunityGoalDto): Promise<FounderPackCommunityGoal> => {
+    try {
+      const response = await apiRequest<{ success: boolean; data: FounderPackCommunityGoal } | FounderPackCommunityGoal>(
+        `/founder-pack/community-goals/admin/${id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }
+      );
+      
+      if (Array.isArray(response)) {
+        throw new Error('Unexpected array response');
+      }
+      
+      if (response && typeof response === 'object' && 'success' in response) {
+        const typedResponse = response as { success: boolean; data: FounderPackCommunityGoal };
+        return typedResponse.data || typedResponse as any;
+      }
+      
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as any).data;
+      }
+      
+      return response as FounderPackCommunityGoal;
+    } catch (error: any) {
+      console.error('Error updating community goal:', error);
+      throw error;
+    }
+  },
+
+  deleteCommunityGoal: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiRequest<{ success: boolean; message: string }>(
+      `/founder-pack/community-goals/admin/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
     return response.data || response;
   },
 
-  getUserStatus: async (): Promise<UserFounderStatus> => {
-    const response = await apiRequest<UserFounderStatus>('/founder-pack/user-status');
-    return response.data || response;
-  },
-
-  getCommunityGoalsStatus: async (): Promise<CommunityGoalsStatus> => {
-    const response = await apiRequest<CommunityGoalsStatus>('/founder-pack/community-goals/status');
-    return response.data || response;
-  },
-
-  getIAPStatus: async (userId: string): Promise<IAPStatus> => {
-    const response = await apiRequest<IAPStatus>(`/founder-pack/iap/status/${userId}`);
-    return response.data || response;
-  },
-
-  getPrelaunchRewards: async (userId: string): Promise<RewardsPrelaunch> => {
-    const response = await apiRequest<RewardsPrelaunch>(`/founder-pack/rewards/prelaunch/${userId}`);
-    return response.data || response;
-  },
-
-  grantRewards: async (userId: string): Promise<RewardsGrant> => {
-    const response = await apiRequest<RewardsGrant>(`/founder-pack/rewards/grant/${userId}`, {
-      method: 'POST',
-    });
-    return response.data || response;
-  },
-
-  // Admin endpoints
+  // Founders List
   getFoundersList: async (query?: FoundersListQuery): Promise<FoundersListResponse> => {
     const params = new URLSearchParams();
     if (query?.page) params.append('page', query.page.toString());
@@ -1293,28 +1267,27 @@ export const founderPackApi = {
     return response.data?.data || response.data || response;
   },
 
-  getAvailableCommunityGoalRewards: async (): Promise<AvailableCommunityGoalReward[]> => {
-    const response = await apiRequest<{ success: boolean; data: AvailableCommunityGoalReward[] }>(
-      '/founder-pack/community-goals/available-rewards'
-    );
-    return response.data?.data || response.data || [];
-  },
-
-  claimCommunityGoalReward: async (goalId: string): Promise<ClaimCommunityGoalRewardResponse> => {
-    const response = await apiRequest<ClaimCommunityGoalRewardResponse>(
-      '/founder-pack/community-goals/claim-reward',
-      {
-        method: 'POST',
-        body: JSON.stringify({ goal_id: goalId }),
-      }
-    );
-    return response.data || response;
-  },
-
-  // Admin: Founder Pack Settings
+  // Settings
   getSettings: async (): Promise<FounderPackSettings> => {
-    const response = await apiRequest<FounderPackSettings>('/founder-pack/admin/settings');
-    return response.data || response;
+    try {
+      const response = await apiRequest<FounderPackSettings | { success: boolean; data: FounderPackSettings }>(
+        '/founder-pack/admin/settings'
+      );
+      
+      if (response && typeof response === 'object' && 'success' in response) {
+        const typedResponse = response as { success: boolean; data: FounderPackSettings };
+        return typedResponse.data || typedResponse as any;
+      }
+      
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as any).data;
+      }
+      
+      return response as FounderPackSettings;
+    } catch (error: any) {
+      console.error('Error fetching settings:', error);
+      throw error;
+    }
   },
 
   updateSettings: async (settings: Partial<FounderPackSettings>): Promise<{ success: boolean; message: string; settings: FounderPackSettings }> => {
@@ -1328,7 +1301,6 @@ export const founderPackApi = {
     return response.data || response;
   },
 
-  // Update individual content icon
   updateContentIcon: async (itemId: 'founder_outfit' | 'dino_gems' | 'founder_frame', iconUrl: string): Promise<{ success: boolean; message: string; data: { item_id: string; icon_url: string } }> => {
     const response = await apiRequest<{ success: boolean; message: string; data: { item_id: string; icon_url: string } }>(
       '/founder-pack/contents/icon',
@@ -1340,7 +1312,6 @@ export const founderPackApi = {
     return response.data || response;
   },
 
-  // Update individual community goal reward icon
   updateRewardIcon: async (tier: 1 | 2 | 3, iconUrl: string): Promise<{ success: boolean; message: string; data: { tier: number; icon_url: string } }> => {
     const response = await apiRequest<{ success: boolean; message: string; data: { tier: number; icon_url: string } }>(
       '/founder-pack/community-goals/reward-icon',
@@ -1351,25 +1322,84 @@ export const founderPackApi = {
     );
     return response.data || response;
   },
-};
 
-export type {
-  FounderPackDetails,
-  UserFounderStatus,
-  CommunityGoalsStatus,
-  FoundersListResponse,
-  FoundersListQuery,
-  IAPStatus,
-  RewardsPrelaunch,
-  RewardsGrant,
-  PackItem,
-  PackInfo,
-  UserStatus,
-  Entitlement,
-  Milestone,
-  Founder,
-  AvailableCommunityGoalReward,
-  ClaimCommunityGoalRewardResponse,
+  // User Status & IAP
+  getUserStatus: async (userId?: string): Promise<any> => {
+    const url = userId ? `/founder-pack/user-status?userId=${userId}` : '/founder-pack/user-status';
+    const response = await apiRequest<any>(url);
+    return response.data || response;
+  },
+
+  getIAPStatus: async (userId: string): Promise<any> => {
+    const response = await apiRequest<any>(`/founder-pack/iap/status/${userId}`);
+    return response.data || response;
+  },
+
+  // Rewards Management
+  getPrelaunchRewards: async (userId: string): Promise<any> => {
+    const response = await apiRequest<any>(`/founder-pack/rewards/prelaunch/${userId}`);
+    return response.data || response;
+  },
+
+  grantRewards: async (userId: string): Promise<any> => {
+    const response = await apiRequest<any>(
+      `/founder-pack/rewards/grant/${userId}`,
+      {
+        method: 'POST',
+      }
+    );
+    return response.data || response;
+  },
+
+  getAvailableRewards: async (): Promise<any[]> => {
+    const response = await apiRequest<{ success: boolean; data: any[] } | any[]>(
+      '/founder-pack/community-goals/available-rewards'
+    );
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response && typeof response === 'object' && 'success' in response) {
+      return (response as any).data || [];
+    }
+    if (response && typeof response === 'object' && 'data' in response) {
+      return (response as any).data || [];
+    }
+    return [];
+  },
+
+  claimReward: async (goalId: string): Promise<any> => {
+    const response = await apiRequest<any>(
+      '/founder-pack/community-goals/claim-reward',
+      {
+        method: 'POST',
+        body: JSON.stringify({ goal_id: goalId }),
+      }
+    );
+    return response.data || response;
+  },
+
+  // Community Goals Status
+  getCommunityGoalsStatus: async (): Promise<any> => {
+    const response = await apiRequest<any>('/founder-pack/community-goals/status');
+    return response.data || response;
+  },
+
+  updateCommunityGoalsProgress: async (updates: { goal_id: string; current_sales_count: number }[]): Promise<any> => {
+    const response = await apiRequest<any>(
+      '/founder-pack/community-goals/update',
+      {
+        method: 'POST',
+        body: JSON.stringify({ updates }),
+      }
+    );
+    return response.data || response;
+  },
+
+  // Founder Pack Details
+  getFounderPackDetails: async (): Promise<any> => {
+    const response = await apiRequest<any>('/founder-pack/details');
+    return response.data || response;
+  },
 };
 
 // Tapathon Types
@@ -1403,11 +1433,16 @@ export interface TapathonCommunityGoal {
   is_completed: boolean;
   completed_at: Date | null;
   current_taps: number;
-  is_active: boolean;
+  is_active: boolean | number; // Can be boolean or 1/0 (number)
   progress_percentage: number;
   created_at: Date;
   updated_at: Date;
   reward_icon_url?: string | null;
+  reward_name?: string | null;
+  // API response may use different field names
+  RewardIcon?: string | null;
+  RewardName?: string | null;
+  isCollected?: boolean;
 }
 
 export interface TapathonCommunityGoalListResponse {
@@ -1428,6 +1463,8 @@ export interface UpdateTapathonCommunityGoalDto {
   is_completed?: boolean;
   current_taps?: number;
   is_active?: boolean;
+  reward_name?: string;
+  reward_icon_url?: string | null;
 }
 
 export interface UpdateTapathonCommunityGoalRewardIconDto {
