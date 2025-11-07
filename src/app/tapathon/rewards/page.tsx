@@ -10,13 +10,11 @@ export default function TapRewardsManagementPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [rewards, setRewards] = useState<TapReward[]>([]);
+  const [allRewards, setAllRewards] = useState<TapReward[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingReward, setEditingReward] = useState<TapReward | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(50);
-  const [total, setTotal] = useState(0);
   const [filterUserId, setFilterUserId] = useState('');
   const [filterIsClaimed, setFilterIsClaimed] = useState<string>('');
   const [selectedRewards, setSelectedRewards] = useState<string[]>([]);
@@ -29,23 +27,33 @@ export default function TapRewardsManagementPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchRewards();
+      fetchAllRewards();
     }
-  }, [isAuthenticated, page, filterUserId, filterIsClaimed]);
+  }, [isAuthenticated]);
 
-  const fetchRewards = async () => {
+  const fetchAllRewards = async () => {
     try {
       setLoading(true);
       setError(null);
-      const offset = (page - 1) * limit;
-      const data = await tapathonApi.getAllTapRewards({
-        limit,
-        offset,
-        user_id: filterUserId || undefined,
-        is_claimed: filterIsClaimed ? filterIsClaimed === 'true' : undefined,
-      });
-      setRewards(data.rewards || []);
-      setTotal(data.total || 0);
+      // Fetch all rewards without limit - get all pages
+      let allRewardsData: TapReward[] = [];
+      let offset = 0;
+      const limit = 100; // Fetch in batches of 100
+      let hasMore = true;
+
+      while (hasMore) {
+        const data = await tapathonApi.getAllTapRewards({ limit, offset });
+        if (data.rewards && data.rewards.length > 0) {
+          allRewardsData = [...allRewardsData, ...data.rewards];
+          offset += limit;
+          hasMore = data.rewards.length === limit;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setAllRewards(allRewardsData);
+      setRewards(allRewardsData);
     } catch (err: any) {
       console.error('Error fetching tap rewards:', err);
       setError(err.message || 'Failed to fetch tap rewards');
@@ -54,13 +62,40 @@ export default function TapRewardsManagementPage() {
     }
   };
 
+  const applyFilters = () => {
+    let filtered = [...allRewards];
+    
+    if (filterUserId.trim()) {
+      filtered = filtered.filter(reward => 
+        reward.user_id.toLowerCase().includes(filterUserId.toLowerCase().trim())
+      );
+    }
+    
+    if (filterIsClaimed) {
+      const isClaimed = filterIsClaimed === 'true';
+      filtered = filtered.filter(reward => reward.is_claimed === isClaimed);
+    }
+    
+    setRewards(filtered);
+  };
+
+  const handleApplyFilters = () => {
+    applyFilters();
+  };
+
+  const handleClearFilters = () => {
+    setFilterUserId('');
+    setFilterIsClaimed('');
+    setRewards(allRewards);
+  };
+
   const handleDeleteReward = async (id: string) => {
     if (!confirm('Are you sure you want to delete this reward? This action cannot be undone.')) {
       return;
     }
     try {
       await tapathonApi.deleteTapReward(id);
-      fetchRewards();
+      fetchAllRewards();
     } catch (err: any) {
       alert(err.message || 'Failed to delete reward');
     }
@@ -77,7 +112,7 @@ export default function TapRewardsManagementPage() {
     try {
       await tapathonApi.deleteTapRewards(selectedRewards);
       setSelectedRewards([]);
-      fetchRewards();
+      fetchAllRewards();
     } catch (err: any) {
       alert(err.message || 'Failed to delete rewards');
     }
@@ -120,8 +155,6 @@ export default function TapRewardsManagementPage() {
     return colors[category] || 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300';
   };
 
-  const totalPages = Math.ceil(total / limit);
-
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -138,7 +171,7 @@ export default function TapRewardsManagementPage() {
           <div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Tap Rewards Management</h1>
             <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Manage all tap rewards ({total} total)
+              Manage all tap rewards ({rewards.length} shown, {allRewards.length} total)
             </p>
           </div>
           <div className="flex gap-2">
@@ -160,7 +193,7 @@ export default function TapRewardsManagementPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
               Filter by User ID
@@ -168,10 +201,7 @@ export default function TapRewardsManagementPage() {
             <input
               type="text"
               value={filterUserId}
-              onChange={(e) => {
-                setFilterUserId(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setFilterUserId(e.target.value)}
               placeholder="Enter user ID..."
               className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
             />
@@ -182,10 +212,7 @@ export default function TapRewardsManagementPage() {
             </label>
             <select
               value={filterIsClaimed}
-              onChange={(e) => {
-                setFilterIsClaimed(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setFilterIsClaimed(e.target.value)}
               className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
             >
               <option value="">All</option>
@@ -193,16 +220,18 @@ export default function TapRewardsManagementPage() {
               <option value="false">Unclaimed</option>
             </select>
           </div>
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
             <button
-              onClick={() => {
-                setFilterUserId('');
-                setFilterIsClaimed('');
-                setPage(1);
-              }}
-              className="w-full rounded-md border border-zinc-300 px-4 py-2 dark:border-zinc-600"
+              onClick={handleApplyFilters}
+              className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
             >
-              Clear Filters
+              Apply Filters
+            </button>
+            <button
+              onClick={handleClearFilters}
+              className="flex-1 rounded-md border border-zinc-300 px-4 py-2 dark:border-zinc-600"
+            >
+              Clear
             </button>
           </div>
         </div>
@@ -339,31 +368,6 @@ export default function TapRewardsManagementPage() {
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Page {page} of {totalPages} ({total} total)
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="rounded-md border border-zinc-300 px-4 py-2 disabled:opacity-50 dark:border-zinc-600"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="rounded-md border border-zinc-300 px-4 py-2 disabled:opacity-50 dark:border-zinc-600"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -375,7 +379,7 @@ export default function TapRewardsManagementPage() {
           onClose={handleCloseModal}
           onSuccess={() => {
             handleCloseModal();
-            fetchRewards();
+            fetchAllRewards();
           }}
         />
       )}

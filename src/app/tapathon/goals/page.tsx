@@ -15,9 +15,6 @@ export default function CommunityGoalsManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<TapathonCommunityGoal | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(50);
-  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -27,21 +24,32 @@ export default function CommunityGoalsManagementPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchGoals();
+      fetchAllGoals();
     }
-  }, [isAuthenticated, page]);
+  }, [isAuthenticated]);
 
-  const fetchGoals = async () => {
+  const fetchAllGoals = async () => {
     try {
       setLoading(true);
       setError(null);
-      const offset = (page - 1) * limit;
-      const data = await tapathonApi.getAllCommunityGoals({
-        limit,
-        offset,
-      });
-      setGoals(data.goals || []);
-      setTotal(data.total || 0);
+      // Fetch all goals without limit - get all pages
+      let allGoalsData: TapathonCommunityGoal[] = [];
+      let offset = 0;
+      const limit = 100; // Fetch in batches of 100
+      let hasMore = true;
+
+      while (hasMore) {
+        const data = await tapathonApi.getAllCommunityGoals({ limit, offset });
+        if (data.goals && data.goals.length > 0) {
+          allGoalsData = [...allGoalsData, ...data.goals];
+          offset += limit;
+          hasMore = data.goals.length === limit;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setGoals(allGoalsData);
     } catch (err: any) {
       console.error('Error fetching community goals:', err);
       setError(err.message || 'Failed to fetch community goals');
@@ -56,7 +64,7 @@ export default function CommunityGoalsManagementPage() {
     }
     try {
       await tapathonApi.deleteCommunityGoal(id);
-      fetchGoals();
+      fetchAllGoals();
     } catch (err: any) {
       alert(err.message || 'Failed to delete community goal');
     }
@@ -84,8 +92,6 @@ export default function CommunityGoalsManagementPage() {
     return num.toString();
   };
 
-  const totalPages = Math.ceil(total / limit);
-
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -102,7 +108,7 @@ export default function CommunityGoalsManagementPage() {
           <div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Community Goals Management</h1>
             <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Manage community goal tiers ({total} total)
+              Manage community goal tiers ({goals.length} total)
             </p>
           </div>
           <button
@@ -222,31 +228,6 @@ export default function CommunityGoalsManagementPage() {
                 </div>
               ))}
             </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Page {page} of {totalPages} ({total} total)
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="rounded-md border border-zinc-300 px-4 py-2 disabled:opacity-50 dark:border-zinc-600"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="rounded-md border border-zinc-300 px-4 py-2 disabled:opacity-50 dark:border-zinc-600"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -258,7 +239,7 @@ export default function CommunityGoalsManagementPage() {
           onClose={handleCloseModal}
           onSuccess={() => {
             handleCloseModal();
-            fetchGoals();
+            fetchAllGoals();
           }}
         />
       )}

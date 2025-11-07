@@ -10,13 +10,11 @@ export default function TapsManagementPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [taps, setTaps] = useState<Tap[]>([]);
+  const [allTaps, setAllTaps] = useState<Tap[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTap, setEditingTap] = useState<Tap | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(50);
-  const [total, setTotal] = useState(0);
   const [filterUserId, setFilterUserId] = useState('');
   const [selectedTaps, setSelectedTaps] = useState<string[]>([]);
 
@@ -28,22 +26,33 @@ export default function TapsManagementPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchTaps();
+      fetchAllTaps();
     }
-  }, [isAuthenticated, page, filterUserId]);
+  }, [isAuthenticated]);
 
-  const fetchTaps = async () => {
+  const fetchAllTaps = async () => {
     try {
       setLoading(true);
       setError(null);
-      const offset = (page - 1) * limit;
-      const data = await tapathonApi.getAllTaps({
-        limit,
-        offset,
-        user_id: filterUserId || undefined,
-      });
-      setTaps(data.taps || []);
-      setTotal(data.total || 0);
+      // Fetch all taps without limit - get all pages
+      let allTapsData: Tap[] = [];
+      let offset = 0;
+      const limit = 100; // Fetch in batches of 100
+      let hasMore = true;
+
+      while (hasMore) {
+        const data = await tapathonApi.getAllTaps({ limit, offset });
+        if (data.taps && data.taps.length > 0) {
+          allTapsData = [...allTapsData, ...data.taps];
+          offset += limit;
+          hasMore = data.taps.length === limit;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setAllTaps(allTapsData);
+      setTaps(allTapsData);
     } catch (err: any) {
       console.error('Error fetching taps:', err);
       setError(err.message || 'Failed to fetch taps');
@@ -52,13 +61,34 @@ export default function TapsManagementPage() {
     }
   };
 
+  const applyFilters = () => {
+    let filtered = [...allTaps];
+    
+    if (filterUserId.trim()) {
+      filtered = filtered.filter(tap => 
+        tap.user_id.toLowerCase().includes(filterUserId.toLowerCase().trim())
+      );
+    }
+    
+    setTaps(filtered);
+  };
+
+  const handleApplyFilters = () => {
+    applyFilters();
+  };
+
+  const handleClearFilters = () => {
+    setFilterUserId('');
+    setTaps(allTaps);
+  };
+
   const handleDeleteTap = async (id: string) => {
     if (!confirm('Are you sure you want to delete this tap? This action cannot be undone.')) {
       return;
     }
     try {
       await tapathonApi.deleteTap(id);
-      fetchTaps();
+      fetchAllTaps();
     } catch (err: any) {
       alert(err.message || 'Failed to delete tap');
     }
@@ -75,7 +105,7 @@ export default function TapsManagementPage() {
     try {
       await tapathonApi.deleteTaps(selectedTaps);
       setSelectedTaps([]);
-      fetchTaps();
+      fetchAllTaps();
     } catch (err: any) {
       alert(err.message || 'Failed to delete taps');
     }
@@ -104,8 +134,6 @@ export default function TapsManagementPage() {
     return colors[platform] || 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300';
   };
 
-  const totalPages = Math.ceil(total / limit);
-
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -122,7 +150,7 @@ export default function TapsManagementPage() {
           <div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Taps Management</h1>
             <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Manage all tap records ({total} total)
+              Manage all tap records ({taps.length} shown, {allTaps.length} total)
             </p>
           </div>
           <div className="flex gap-2">
@@ -144,7 +172,7 @@ export default function TapsManagementPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
               Filter by User ID
@@ -152,23 +180,23 @@ export default function TapsManagementPage() {
             <input
               type="text"
               value={filterUserId}
-              onChange={(e) => {
-                setFilterUserId(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setFilterUserId(e.target.value)}
               placeholder="Enter user ID..."
               className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50"
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
             <button
-              onClick={() => {
-                setFilterUserId('');
-                setPage(1);
-              }}
-              className="w-full rounded-md border border-zinc-300 px-4 py-2 dark:border-zinc-600"
+              onClick={handleApplyFilters}
+              className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
             >
-              Clear Filter
+              Apply Filters
+            </button>
+            <button
+              onClick={handleClearFilters}
+              className="flex-1 rounded-md border border-zinc-300 px-4 py-2 dark:border-zinc-600"
+            >
+              Clear
             </button>
           </div>
         </div>
@@ -272,31 +300,6 @@ export default function TapsManagementPage() {
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Page {page} of {totalPages} ({total} total)
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="rounded-md border border-zinc-300 px-4 py-2 disabled:opacity-50 dark:border-zinc-600"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="rounded-md border border-zinc-300 px-4 py-2 disabled:opacity-50 dark:border-zinc-600"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -308,7 +311,7 @@ export default function TapsManagementPage() {
           onClose={handleCloseModal}
           onSuccess={() => {
             handleCloseModal();
-            fetchTaps();
+            fetchAllTaps();
           }}
         />
       )}
